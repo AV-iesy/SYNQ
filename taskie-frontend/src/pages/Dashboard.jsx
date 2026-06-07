@@ -25,65 +25,138 @@ const statusColor = {
   skipped: '#c76b6b',
 }
 
-// ── Activity Ring Component ─────────────────────────────────────
-function Ring({ percentage, color, trackColor, size = 80, stroke = 8, label, value }) {
-  const radius = (size - stroke) / 2
-  const circumference = 2 * Math.PI * radius
-  const offset = circumference - (percentage / 100) * circumference
+function generateCalendarData() {
+  const days = []
+  const today = new Date()
+  for (let i = 195; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(today.getDate() - i)
+    const rand = Math.random()
+    const level = i === 0 ? 3 : rand > 0.6 ? Math.floor(Math.random() * 4) : 0
+    days.push({
+      date: d.toISOString().split('T')[0],
+      level,
+    })
+  }
+  return days
+}
+
+const calendarData = generateCalendarData()
+
+function getLevelColor(level, dark) {
+  if (level === 0) return dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
+  const colors = ['', '#1a4d2e', '#2d7a4a', '#3da85f', '#4fc46e']
+  return colors[level]
+}
+
+function StreakCalendar({ dark }) {
+  const [tooltip, setTooltip] = useState(null)
+  const text = dark ? '#f0f0f0' : '#0a0a0a'
+  const subtle = dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'
+
+  const weeks = []
+  for (let i = 0; i < calendarData.length; i += 7) {
+    weeks.push(calendarData.slice(i, i + 7))
+  }
+
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const days = ['M','T','W','T','F','S','S']
+
+  let streak = 0
+  for (let i = calendarData.length - 1; i >= 0; i--) {
+    if (calendarData[i].level > 0) streak++
+    else break
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-      <div style={{ position: 'relative', width: size, height: size }}>
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          {/* Track */}
-          <circle
-            cx={size / 2} cy={size / 2} r={radius}
-            fill="none"
-            stroke={trackColor}
-            strokeWidth={stroke}
-          />
-          {/* Progress */}
-          <circle
-            cx={size / 2} cy={size / 2} r={radius}
-            fill="none"
-            stroke={color}
-            strokeWidth={stroke}
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            strokeLinecap="round"
-            style={{ transition: 'stroke-dashoffset 0.8s ease' }}
-          />
-        </svg>
-        {/* Center value */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'Bricolage Grotesque, sans-serif',
-          fontSize: size > 100 ? '22px' : '14px',
-          fontWeight: 600,
-          color: color,
-        }}>
-          {value}
+    <div style={{ width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <span style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '16px', fontWeight: 500, color: text }}>
+          Productivity Streak
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '20px' }}>🔥</span>
+          <span style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '20px', fontWeight: 600, color: '#4fc46e' }}>
+            {streak} days
+          </span>
         </div>
       </div>
-      <span style={{
-        fontSize: '11px',
-        fontFamily: 'Inter, sans-serif',
-        color: color,
-        opacity: 0.7,
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px',
-      }}>
-        {label}
-      </span>
+
+      {/* Month labels */}
+      <div style={{ display: 'flex', gap: '3px', marginBottom: '4px', paddingLeft: '24px' }}>
+        {weeks.map((week, wi) => {
+          const firstDay = new Date(week[0].date)
+          const showMonth = firstDay.getDate() <= 7
+          return (
+            <div key={wi} style={{ flex: 1, minWidth: 0 }}>
+              {showMonth && (
+                <span style={{ fontSize: '9px', color: subtle, fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap' }}>
+                  {months[firstDay.getMonth()]}
+                </span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <div style={{ display: 'flex', gap: '3px', width: '100%' }}>
+        {/* Day labels */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginRight: '4px', flexShrink: 0 }}>
+          {days.map((d, i) => (
+            <div key={i} style={{
+              width: '14px', height: '12px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '8px', color: subtle, fontFamily: 'Inter, sans-serif',
+            }}>
+              {i % 2 === 0 ? d : ''}
+            </div>
+          ))}
+        </div>
+
+        {/* Grid */}
+        <div style={{ display: 'flex', gap: '3px', flex: 1 }}>
+          {weeks.map((week, wi) => (
+            <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
+              {week.map((day, di) => (
+                <div
+                  key={di}
+                  onMouseEnter={() => setTooltip({ day })}
+                  onMouseLeave={() => setTooltip(null)}
+                  style={{
+                    width: '100%',
+                    height: '12px',
+                    borderRadius: '2px',
+                    backgroundColor: getLevelColor(day.level, dark),
+                    cursor: 'pointer',
+                    transition: 'opacity 0.1s',
+                  }}
+                  onMouseOver={e => e.currentTarget.style.opacity = '0.7'}
+                  onMouseOut={e => e.currentTarget.style.opacity = '1'}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '10px', justifyContent: 'flex-end' }}>
+        <span style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', marginRight: '4px' }}>Less</span>
+        {[0, 1, 2, 3, 4].map(l => (
+          <div key={l} style={{
+            width: '10px', height: '10px', borderRadius: '2px',
+            backgroundColor: getLevelColor(l, dark),
+          }} />
+        ))}
+        <span style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', marginLeft: '4px' }}>More</span>
+      </div>
     </div>
   )
 }
 
-// ── Stacked Rings (like Apple Activity) ────────────────────────
 function ActivityRings({ completionPct, tasksPct, studyPct }) {
-  const size = 160
-  const stroke = 14
+  const size = 140
+  const stroke = 12
   const gap = 10
 
   const rings = [
@@ -93,8 +166,7 @@ function ActivityRings({ completionPct, tasksPct, studyPct }) {
   ]
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-      {/* Stacked rings */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
       <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
         <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
           {rings.map((ring, i) => {
@@ -103,15 +175,11 @@ function ActivityRings({ completionPct, tasksPct, studyPct }) {
             const offset = circumference - (ring.pct / 100) * circumference
             return (
               <g key={i}>
+                <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={ring.track} strokeWidth={stroke} />
                 <circle
-                  cx={size / 2} cy={size / 2} r={r}
-                  fill="none" stroke={ring.track} strokeWidth={stroke}
-                />
-                <circle
-                  cx={size / 2} cy={size / 2} r={r}
-                  fill="none" stroke={ring.color} strokeWidth={stroke}
-                  strokeDasharray={circumference}
-                  strokeDashoffset={offset}
+                  cx={size/2} cy={size/2} r={r} fill="none"
+                  stroke={ring.color} strokeWidth={stroke}
+                  strokeDasharray={circumference} strokeDashoffset={offset}
                   strokeLinecap="round"
                   style={{ transition: 'stroke-dashoffset 1s ease' }}
                 />
@@ -120,31 +188,15 @@ function ActivityRings({ completionPct, tasksPct, studyPct }) {
           })}
         </svg>
       </div>
-
-      {/* Legend */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {rings.map((ring, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '10px', height: '10px', borderRadius: '50%',
-              backgroundColor: ring.color, flexShrink: 0,
-            }} />
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: ring.color }} />
             <div>
-              <div style={{
-                fontFamily: 'Bricolage Grotesque, sans-serif',
-                fontSize: '18px', fontWeight: 600,
-                color: ring.color, lineHeight: 1,
-              }}>
+              <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '16px', fontWeight: 600, color: ring.color, lineHeight: 1 }}>
                 {ring.pct}%
               </div>
-              <div style={{
-                fontFamily: 'Inter, sans-serif',
-                fontSize: '11px',
-                color: ring.color,
-                opacity: 0.6,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-              }}>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: ring.color, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 {ring.label}
               </div>
             </div>
@@ -172,7 +224,7 @@ export default function Dashboard() {
   const skipped = tasks.filter(t => t.status === 'skipped').length
   const completionPct = Math.round((completed / tasks.length) * 100)
   const tasksPct = Math.round(((tasks.length - skipped) / tasks.length) * 100)
-  const studyPct = 65 // mock — will come from real data later
+  const studyPct = 65
 
   const toggleStatus = (id) => {
     setTasks(prev => prev.map(t => {
@@ -213,96 +265,56 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      {/* ── HEADER ── */}
-      <div style={{ marginBottom: '32px' }}>
-        <p style={{ fontSize: '13px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '4px' }}>
-          {today}
-        </p>
-        <h1 style={{
-          fontFamily: 'Bricolage Grotesque, sans-serif',
-          fontSize: '28px', fontWeight: 600,
-          color: text, letterSpacing: '-0.5px',
-        }}>
+      {/* HEADER */}
+      <div style={{ marginBottom: '28px' }}>
+        <p style={{ fontSize: '13px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '4px' }}>{today}</p>
+        <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '28px', fontWeight: 600, color: text, letterSpacing: '-0.5px' }}>
           Good day 👋
         </h1>
       </div>
 
-      {/* ── TOP ROW: RINGS + STREAK ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+      {/* ROW 1: Activity rings + Streak calendar */}
+      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '16px', marginBottom: '16px' }}>
 
-        {/* Activity Rings card */}
+        {/* Rings */}
         <div style={card()}>
-          <div style={{
-            fontFamily: 'Bricolage Grotesque, sans-serif',
-            fontSize: '16px', fontWeight: 500,
-            color: text, marginBottom: '24px',
-          }}>
+          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '15px', fontWeight: 500, color: text, marginBottom: '20px' }}>
             Today's Activity
           </div>
-          <ActivityRings
-            completionPct={completionPct}
-            tasksPct={tasksPct}
-            studyPct={studyPct}
-          />
+          <ActivityRings completionPct={completionPct} tasksPct={tasksPct} studyPct={studyPct} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '20px' }}>
+            {[
+              { label: 'Tasks Done', value: `${completed}/${tasks.length}` },
+              { label: 'Study Hours', value: '2h 30m' },
+            ].map(s => (
+              <div key={s.label} style={{
+                padding: '10px 12px', borderRadius: '10px',
+                backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                border: `1px solid ${faint}`,
+              }}>
+                <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                  {s.label}
+                </div>
+                <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text }}>
+                  {s.value}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Streak + quick stats */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {/* Streak */}
-          <div style={{
-            ...card(),
-            display: 'flex', alignItems: 'center',
-            justifyContent: 'space-between', flex: 1,
-          }}>
-            <div>
-              <div style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Current Streak
-              </div>
-              <div style={{
-                fontFamily: 'Bricolage Grotesque, sans-serif',
-                fontSize: '36px', fontWeight: 600,
-                color: text, letterSpacing: '-1px', lineHeight: 1,
-              }}>
-                5
-              </div>
-              <div style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif', marginTop: '4px' }}>
-                consecutive days
-              </div>
-            </div>
-            <div style={{ fontSize: '48px', opacity: 0.8 }}>🔥</div>
-          </div>
-
-          {/* Mini stats row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={card({ padding: '16px' })}>
-              <div style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Tasks Done
-              </div>
-              <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '22px', fontWeight: 600, color: text }}>
-                {completed}/{tasks.length}
-              </div>
-            </div>
-            <div style={card({ padding: '16px' })}>
-              <div style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Study Hours
-              </div>
-              <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '22px', fontWeight: 600, color: text }}>
-                2h 30m
-              </div>
-            </div>
-          </div>
+        {/* Streak calendar */}
+        <div style={{ ...card(), overflow: 'visible' }}>
+          <StreakCalendar dark={dark} />
         </div>
       </div>
 
-      {/* ── BOTTOM ROW: SCHEDULE + TASKS ── */}
+      {/* ROW 2: Schedule + Tasks */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
 
         {/* Schedule */}
         <div style={card()}>
-          <div style={{
-            display: 'flex', justifyContent: 'space-between',
-            alignItems: 'center', marginBottom: '20px',
-          }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <span style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '16px', fontWeight: 500, color: text }}>
               Today's Schedule
             </span>
@@ -331,7 +343,8 @@ export default function Dashboard() {
                 </span>
                 <span style={{
                   fontSize: '10px', padding: '2px 8px', borderRadius: '100px',
-                  color: subtle, backgroundColor: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+                  color: subtle,
+                  backgroundColor: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
                   border: `1px solid ${faint}`, fontFamily: 'Inter, sans-serif',
                 }}>
                   {block.tag}
@@ -343,10 +356,7 @@ export default function Dashboard() {
 
         {/* Tasks */}
         <div style={card()}>
-          <div style={{
-            display: 'flex', justifyContent: 'space-between',
-            alignItems: 'center', marginBottom: '16px',
-          }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <span style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '16px', fontWeight: 500, color: text }}>
               Tasks
             </span>
@@ -379,7 +389,7 @@ export default function Dashboard() {
               >
                 <button
                   onClick={() => toggleStatus(task.id)}
-                  title="Click to change status"
+                  title="Click to cycle status"
                   style={{
                     width: '8px', height: '8px', borderRadius: '50%',
                     backgroundColor: statusColor[task.status],
