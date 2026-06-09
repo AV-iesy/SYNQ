@@ -9,6 +9,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Planner from './pages/Planner'
+import Calendar from './pages/Calendar'
 import Journal from './pages/Journal'
 import Analytics from './pages/Analytics'
 
@@ -38,6 +39,7 @@ export default function App() {
               <Route path="/planner" element={<Planner />} />
               <Route path="/journal" element={<Journal />} />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/calendar" element={<Calendar />} />
             </Route>
           </Routes>
         </BrowserRouter>
