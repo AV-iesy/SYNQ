@@ -28,6 +28,29 @@ const tagStyle = {
   meal:    { bg: 'rgba(90,173,122,0.12)',  color: '#5aad7a', border: 'rgba(90,173,122,0.3)' },
   workout: { bg: 'rgba(255,77,0,0.1)',     color: '#ff6b2b', border: 'rgba(255,77,0,0.25)' },
   rest:    { bg: 'rgba(100,100,100,0.1)',  color: '#888',    border: 'rgba(100,100,100,0.2)' },
+  sleep:   { bg: 'rgba(139,107,199,0.15)', color: '#a78bda', border: 'rgba(139,107,199,0.3)' },
+  wake:    { bg: 'rgba(201,148,74,0.15)',  color: '#c9944a', border: 'rgba(201,148,74,0.3)' },
+  personal:{ bg: 'rgba(201,148,74,0.15)', color: '#c9944a', border: 'rgba(201,148,74,0.3)' },
+  break:   { bg: 'rgba(100,100,100,0.1)',  color: '#888',    border: 'rgba(100,100,100,0.2)' },
+  general: { bg: 'rgba(100,100,100,0.1)',  color: '#888',    border: 'rgba(100,100,100,0.2)' },
+}
+
+const TAG_DOTS = {
+  workout: '#ff4d00', meal: '#5aad7a', work: '#4a90d9',
+  study: '#8b6bc7', water: '#4a9fd9', rest: '#555',
+  sleep: '#8b6bc7', wake: '#c9944a', personal: '#c9944a',
+  break: '#555', default: '#888',
+}
+
+function getSavedSchedule() {
+  try {
+    const raw = localStorage.getItem('synq-schedule')
+    if (!raw) return null
+    const { date, blocks } = JSON.parse(raw)
+    const today = new Date().toISOString().split('T')[0]
+    if (date !== today) return null
+    return blocks
+  } catch { return null }
 }
 
 function generateCalendarData() {
@@ -51,63 +74,78 @@ function getLevelColor(level, dark) {
 }
 
 function StreakCalendar({ dark }) {
-  const subtle = dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)'
   const text = dark ? '#f0f0f0' : '#0a0a0a'
+  const subtle = dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)'
+
   const weeks = []
   for (let i = 0; i < calendarData.length; i += 7)
     weeks.push(calendarData.slice(i, i + 7))
+
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   const days = ['M','T','W','T','F','S','S']
+
   let streak = 0
   for (let i = calendarData.length - 1; i >= 0; i--) {
     if (calendarData[i].level > 0) streak++
     else break
   }
+
   return (
     <div style={{ width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
         <div>
-          <div style={{ fontSize: '11px', fontFamily: 'Inter, sans-serif', color: subtle, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>
-            Streak
-          </div>
-          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '32px', fontWeight: 700, color: '#ff4d00', letterSpacing: '-1px', lineHeight: 1 }}>
-            {streak} <span style={{ fontSize: '14px', fontWeight: 400, color: subtle }}>days</span>
+          <div style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', color: subtle, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>Streak</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+            <span style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '28px', fontWeight: 700, color: '#ff4d00', letterSpacing: '-1px', lineHeight: 1 }}>{streak}</span>
+            <span style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif' }}>days</span>
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '11px', fontFamily: 'Inter, sans-serif', color: subtle, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Best</div>
-          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '20px', fontWeight: 600, color: text }}>12 days</div>
+          <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>Best</div>
+          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text }}>12 days</div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '3px', marginBottom: '4px', paddingLeft: '20px' }}>
+      <div style={{ display: 'flex', marginBottom: '3px', paddingLeft: '18px' }}>
         {weeks.map((week, wi) => {
           const firstDay = new Date(week[0].date)
           const showMonth = firstDay.getDate() <= 7
           return (
             <div key={wi} style={{ flex: 1, minWidth: 0 }}>
-              {showMonth && <span style={{ fontSize: '9px', color: subtle, fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap' }}>{months[firstDay.getMonth()]}</span>}
+              {showMonth && (
+                <span style={{ fontSize: '8px', color: subtle, fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap' }}>
+                  {months[firstDay.getMonth()]}
+                </span>
+              )}
             </div>
           )
         })}
       </div>
 
-      <div style={{ display: 'flex', gap: '3px', width: '100%' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginRight: '4px', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: '2px', width: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginRight: '3px', flexShrink: 0, justifyContent: 'space-around' }}>
           {days.map((d, i) => (
-            <div key={i} style={{ width: '14px', height: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', color: subtle, fontFamily: 'Inter, sans-serif' }}>
-              {i % 2 === 0 ? d : ''}
+            <div key={i} style={{
+              width: '10px', height: '10px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '7px', color: subtle, fontFamily: 'Inter, sans-serif',
+            }}>
+              {d}
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: '3px', flex: 1 }}>
+
+        <div style={{ display: 'flex', gap: '2px', flex: 1 }}>
           {weeks.map((week, wi) => (
-            <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
+            <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
               {week.map((day, di) => (
                 <div key={di} style={{
-                  width: '100%', height: '11px', borderRadius: '2px',
+                  width: '100%',
+                  aspectRatio: '1',
+                  borderRadius: '2px',
                   backgroundColor: getLevelColor(day.level, dark),
-                  cursor: 'pointer', transition: 'opacity 0.1s',
+                  cursor: 'pointer',
+                  transition: 'opacity 0.1s',
                 }}
                   onMouseOver={e => e.currentTarget.style.opacity = '0.7'}
                   onMouseOut={e => e.currentTarget.style.opacity = '1'}
@@ -118,10 +156,12 @@ function StreakCalendar({ dark }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '10px', justifyContent: 'flex-end' }}>
-        <span style={{ fontSize: '9px', color: subtle, fontFamily: 'Inter, sans-serif', marginRight: '4px' }}>Less</span>
-        {[0,1,2,3,4].map(l => <div key={l} style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: getLevelColor(l, dark) }} />)}
-        <span style={{ fontSize: '9px', color: subtle, fontFamily: 'Inter, sans-serif', marginLeft: '4px' }}>More</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '8px', justifyContent: 'flex-end' }}>
+        <span style={{ fontSize: '9px', color: subtle, fontFamily: 'Inter, sans-serif', marginRight: '3px' }}>Less</span>
+        {[0,1,2,3,4].map(l => (
+          <div key={l} style={{ width: '8px', height: '8px', borderRadius: '1px', backgroundColor: getLevelColor(l, dark) }} />
+        ))}
+        <span style={{ fontSize: '9px', color: subtle, fontFamily: 'Inter, sans-serif', marginLeft: '3px' }}>More</span>
       </div>
     </div>
   )
@@ -174,7 +214,6 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState(mockTasks)
   const [newTask, setNewTask] = useState('')
 
-  const bg = dark ? '#0e0e0e' : '#f5f5f5'
   const text = dark ? '#f0f0f0' : '#0a0a0a'
   const subtle = dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'
   const faint = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
@@ -206,20 +245,18 @@ export default function Dashboard() {
     ...extra,
   })
 
+  const displaySchedule = getSavedSchedule() || mockSchedule
+
   return (
     <AppLayout>
-      {/* HEADER */}
       <div style={{ marginBottom: '36px' }}>
         <p style={{ fontSize: '13px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '6px' }}>{today}</p>
-        <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '40px', fontWeight: 700, color: text, letterSpacing: '-1.5px', lineHeight: 1.1 }}>
-          Good day 👋
+        <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '40px', fontWeight: 700, color: text, letterSpacing: '-1.5px', lineHeight: 1 }}>
+          <span style={{ color: '#ff4d00' }}>SYNQ</span> your day !
         </h1>
       </div>
 
-      {/* ROW 1 */}
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '16px', marginBottom: '16px' }}>
-
-        {/* Activity */}
         <div style={card()}>
           <div style={{ fontSize: '11px', fontFamily: 'Inter, sans-serif', color: subtle, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '20px' }}>
             Today's Activity
@@ -235,27 +272,34 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Streak */}
-        <div style={card()}>
+        <div style={{ ...card(), overflow: 'visible', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <StreakCalendar dark={dark} />
         </div>
       </div>
 
-      {/* ROW 2 */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
 
-        {/* Schedule */}
         <div style={card()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text, letterSpacing: '-0.3px' }}>
               Today's Schedule
             </div>
-            <a href="/planner" style={{ fontSize: '12px', color: '#ff4d00', textDecoration: 'none', fontFamily: 'Inter, sans-serif' }}>
-              Edit →
-            </a>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {getSavedSchedule() && (
+                <button
+                  onClick={() => { localStorage.removeItem('synq-schedule'); window.location.reload() }}
+                  style={{ fontSize: '12px', color: subtle, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
+                >
+                  Clear
+                </button>
+              )}
+              <a href="/planner" style={{ fontSize: '12px', color: '#ff4d00', textDecoration: 'none', fontFamily: 'Inter, sans-serif' }}>
+                Edit →
+              </a>
+            </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {mockSchedule.map((block, i) => {
+            {displaySchedule.map((block, i) => {
               const ts = tagStyle[block.tag] || tagStyle.rest
               return (
                 <div key={i} style={{
@@ -268,7 +312,7 @@ export default function Dashboard() {
                   onMouseLeave={e => e.currentTarget.style.borderColor = faint}
                 >
                   <span style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif', minWidth: '36px' }}>{block.time}</span>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: block.dot, flexShrink: 0 }} />
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: block.dot || TAG_DOTS[block.tag] || '#888', flexShrink: 0 }} />
                   <span style={{ flex: 1, fontSize: '13px', color: text, fontFamily: 'Inter, sans-serif' }}>{block.label}</span>
                   <span style={{
                     fontSize: '10px', padding: '3px 10px', borderRadius: '100px',
@@ -282,7 +326,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Tasks */}
         <div style={card()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text, letterSpacing: '-0.3px' }}>
@@ -291,7 +334,6 @@ export default function Dashboard() {
             <span style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{completed}/{tasks.length} done</span>
           </div>
 
-          {/* Progress */}
           <div style={{ height: '3px', backgroundColor: faint, borderRadius: '2px', marginBottom: '16px', overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${completionPct}%`, backgroundColor: '#ff4d00', borderRadius: '2px', transition: 'width 0.4s ease' }} />
           </div>
