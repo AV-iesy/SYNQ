@@ -109,13 +109,7 @@ export default function Calendar() {
           <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '32px', fontWeight: 700, color: text, letterSpacing: '-1px' }}>{currentYear}</h1>
           <button onClick={() => setCurrentYear(y => y+1)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: `1px solid ${faint}`, backgroundColor: 'transparent', color: subtle, cursor: 'pointer', fontSize: '14px' }}>→</button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif' }}>No data</span>
-          {[0,1,2,3,4].map(l => (
-            <div key={l} style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: l === 0 ? cellBg : `#ff4d00${['','28','55','99','ff'][l]}` }} />
-          ))}
-          <span style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif' }}>Perfect</span>
-        </div>
+        
       </div>
 
       {/* 12 month grid */}

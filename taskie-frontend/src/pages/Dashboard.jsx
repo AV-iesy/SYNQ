@@ -298,8 +298,8 @@ export default function Dashboard() {
               </a>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {displaySchedule.map((block, i) => {
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
+  {displaySchedule.map((block, i) => {
               const ts = tagStyle[block.tag] || tagStyle.rest
               return (
                 <div key={i} style={{
@@ -307,6 +307,9 @@ export default function Dashboard() {
                   padding: '10px 14px', borderRadius: '12px',
                   backgroundColor: dark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
                   border: `1px solid ${faint}`, transition: 'border-color 0.2s',
+
+
+                  
                 }}
                   onMouseEnter={e => e.currentTarget.style.borderColor = hoverBorder}
                   onMouseLeave={e => e.currentTarget.style.borderColor = faint}
