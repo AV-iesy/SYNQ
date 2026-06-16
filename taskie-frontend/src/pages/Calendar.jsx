@@ -75,11 +75,21 @@ export default function Calendar() {
   const dark = theme === 'dark'
 
   const today = new Date()
-  const [currentYear, setCurrentYear] = useState(today.getFullYear())
-  const [currentMonth, setCurrentMonth] = useState(today.getMonth())
-  const [selectedDay, setSelectedDay] = useState(null)
-  const [view, setView] = useState('year')
+  const getInitialNav = () => {
+  try {
+    const raw = localStorage.getItem('synq-calendar-nav')
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    localStorage.removeItem('synq-calendar-nav')
+    return parsed
+  } catch { return null }
+}
+const nav = getInitialNav()
 
+const [currentYear, setCurrentYear] = useState(nav?.year || today.getFullYear())
+const [currentMonth, setCurrentMonth] = useState(typeof nav?.month === 'number' ? nav.month : today.getMonth())
+const [selectedDay, setSelectedDay] = useState(nav?.date || null)
+const [view, setView] = useState(nav ? 'month' : 'year')
   const text = dark ? '#f0f0f0' : '#0a0a0a'
   const subtle = dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'
   const faint = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'

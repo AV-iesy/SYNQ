@@ -140,16 +140,27 @@ function StreakCalendar({ dark }) {
             <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
               {week.map((day, di) => (
                 <div key={di} style={{
-                  width: '100%',
-                  aspectRatio: '1',
-                  borderRadius: '2px',
-                  backgroundColor: getLevelColor(day.level, dark),
-                  cursor: 'pointer',
-                  transition: 'opacity 0.1s',
-                }}
-                  onMouseOver={e => e.currentTarget.style.opacity = '0.7'}
-                  onMouseOut={e => e.currentTarget.style.opacity = '1'}
-                />
+  width: '100%',
+  aspectRatio: '1',
+  borderRadius: '2px',
+  backgroundColor: getLevelColor(day.level, dark),
+  cursor: day.level > 0 ? 'pointer' : 'default',
+  transition: 'opacity 0.1s',
+}}
+  onMouseOver={e => { if (day.level > 0) e.currentTarget.style.opacity = '0.7' }}
+  onMouseOut={e => e.currentTarget.style.opacity = '1'}
+  onClick={() => {
+  if (day.level > 0) {
+    const [year, month, d] = day.date.split('-').map(Number)
+    localStorage.setItem('synq-calendar-nav', JSON.stringify({
+      year,
+      month: month - 1,
+      date: day.date,
+    }))
+    setTimeout(() => { window.location.href = '/calendar' }, 50)
+  }
+}}
+/>
               ))}
             </div>
           ))}
@@ -288,7 +299,7 @@ export default function Dashboard() {
               {getSavedSchedule() && (
                 <button
                   onClick={() => { localStorage.removeItem('synq-schedule'); window.location.reload() }}
-                  style={{ fontSize: '12px', color: subtle, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
+                  style={{ fontSize: '12px', color: '#ff4d00', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
                 >
                   Clear
                 </button>
@@ -331,11 +342,19 @@ export default function Dashboard() {
 
         <div style={card()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text, letterSpacing: '-0.3px' }}>
-              Tasks
-            </div>
-            <span style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{completed}/{tasks.length} done</span>
-          </div>
+  <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text, letterSpacing: '-0.3px' }}>
+    Tasks
+  </div>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+    <button
+      onClick={() => setTasks([])}
+      style={{ fontSize: '12px', color: subtle, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
+    >
+      Clear all
+    </button>
+    <span style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{completed}/{tasks.length} done</span>
+  </div>
+</div>
 
           <div style={{ height: '3px', backgroundColor: faint, borderRadius: '2px', marginBottom: '16px', overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${completionPct}%`, backgroundColor: '#ff4d00', borderRadius: '2px', transition: 'width 0.4s ease' }} />
