@@ -382,7 +382,7 @@ const [view, setView] = useState(nav ? 'month' : 'year')
     <AppLayout>
       <div style={{ marginBottom: '20px', flexShrink: 0 }}>
         <p style={{ fontSize: '13px', color: dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', fontFamily: 'Inter, sans-serif', marginBottom: '4px' }}>Archive</p>
-        <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '32px', fontWeight: 700, color: text, letterSpacing: '-1px', lineHeight: 1 }}>Calendar</h1>
+        <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '40px', fontWeight: 700, color: text, letterSpacing: '-1px', lineHeight: 1 }}> <span style={{ color: '#ff4d00' }}>Calendar</span> </h1>
       </div>
       <div style={{ height: '1px', backgroundColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', marginBottom: '20px' }} />
       {view === 'year' ? <YearView /> : <MonthView />}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
+import synqLogo from '../assets/synq-logo.png'
 
 const mockTasks = [
   { id: 1, title: 'Complete DSA chapter 3', status: 'completed', tag: 'study' },
@@ -232,9 +233,9 @@ export default function Dashboard() {
   const hoverBorder = dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'
 
   const completed = tasks.filter(t => t.status === 'completed').length
-  const completionPct = Math.round((completed / tasks.length) * 100)
-  const tasksPct = Math.round((tasks.filter(t => t.status !== 'skipped').length / tasks.length) * 100)
-  const studyPct = 65
+const completionPct = tasks.length === 0 ? 0 : Math.round((completed / tasks.length) * 100)
+const tasksPct = tasks.length === 0 ? 0 : Math.round((tasks.filter(t => t.status !== 'skipped').length / tasks.length) * 100)
+const studyPct = tasks.length === 0 ? 0 : 65
 
   const toggleStatus = (id) =>
     setTasks(prev => prev.map(t => t.id !== id ? t : { ...t, status: t.status === 'completed' ? 'pending' : 'completed' }))
@@ -260,12 +261,15 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div style={{ marginBottom: '36px' }}>
-        <p style={{ fontSize: '13px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '6px' }}>{today}</p>
-        <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '40px', fontWeight: 700, color: text, letterSpacing: '-1.5px', lineHeight: 1 }}>
-          <span style={{ color: '#ff4d00' }}>SYNQ</span> your day !
-        </h1>
-      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '36px' }}>
+  <div>
+    <p style={{ fontSize: '13px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '6px' }}>{today}</p>
+    <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '40px', fontWeight: 700, color: text, letterSpacing: '-1.5px', lineHeight: 1 }}>
+      <span style={{ color: '#ff4d00' }}>Dashboard</span> 
+    </h1>
+  </div>
+  <img src={synqLogo} alt="SYNQ" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+</div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '16px', marginBottom: '16px' }}>
         <div style={card()}>

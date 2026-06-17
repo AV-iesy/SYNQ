@@ -17,8 +17,8 @@ export default function AppLayout({ children }) {
   const navigate = useNavigate()
   const dark = theme === 'dark'
 
-  const bg = dark ? '#0e0e0e' : '#f5f5f5'
-  const sidebar = dark ? '#111111' : '#ececec'
+  const bg = dark ? '#000000' : '#f5f5f5'
+  const sidebar = dark ? '#000000' : '#ececec'
   const text = dark ? '#f0f0f0' : '#0a0a0a'
   const subtle = dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'
   const faint = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
@@ -87,7 +87,7 @@ export default function AppLayout({ children }) {
 
           <div style={{
             padding: '12px 14px', borderRadius: '12px',
-            backgroundColor: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+            backgroundColor: dark ? 'rgba(255,255,255,0)' : 'rgba(0,0,0,0)',
             border: `1px solid ${faint}`,
           }}>
             <div style={{
