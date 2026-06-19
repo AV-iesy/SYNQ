@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
+import synqLogo from '../assets/synq-logo.png'
 
 const TAG_COLORS = {
   sleep:    { color: '#8b6bc7', bg: 'rgba(139,107,199,0.15)', border: 'rgba(139,107,199,0.3)' },
@@ -93,8 +94,13 @@ Rules:
       })
 
       const raw = completion.choices[0]?.message?.content || ''
-      const cleaned = raw.replace(/```json|```/g, '').trim()
-      const blocks = JSON.parse(cleaned)
+let cleaned = raw.replace(/```json|```/g, '').trim()
+
+// Extract just the JSON array portion in case the model added extra text
+const arrayMatch = cleaned.match(/\[[\s\S]*\]/)
+if (arrayMatch) cleaned = arrayMatch[0]
+
+const blocks = JSON.parse(cleaned)
 
       if (!Array.isArray(blocks)) throw new Error('Invalid response')
       setSchedule(blocks)
@@ -120,18 +126,21 @@ Rules:
     <AppLayout>
       {/* HEADER */}
       <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '40px', fontWeight: 700, letterSpacing: '-1px' }}>
+        <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '45px', fontWeight: 800, letterSpacing: '-1px' }}>
           <span style={{ color: '#ff4d00' }}>Planner</span>
+          
         </h1>
+        
       </div>
 
       {!schedule ? (
-        <div style={{ maxWidth: '720px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '760px', margin: '40px auto 0' }}>
 
           {/* Main input card */}
-          <div style={card({ marginBottom: '16px' })}>
-            <div style={{ fontSize: '24px', color: text, fontFamily: 'Bricolage Grotesque, sans-serif', fontWeight: 500, marginBottom: '14px', textAlign: 'center', letterSpacing: '1.5px' }}>
+          <div style={card({ marginBottom: '16px', margin : '32px' })}>
+            <div style={{ fontSize: '32px', color: text, fontFamily: 'Bricolage Grotesque, sans-serif', fontWeight: 500, marginBottom: '14px', textAlign: 'center', letterSpacing: '1.5px' }}>
               Write about your day and let it <span style={{ color: '#ff4d00' }}>SYNQ</span>
+              
             </div>
 
             <textarea
@@ -141,9 +150,9 @@ Rules:
               rows={5}
               style={{
                 width: '100%',
-                padding: '16px',
-                borderRadius: '12px',
-                fontSize: '15px',
+                padding: '20px',
+                borderRadius: '14px',
+                fontSize: '16px',
                 fontFamily: 'Inter, sans-serif',
                 lineHeight: '1.6',
                 backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
