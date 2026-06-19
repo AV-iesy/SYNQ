@@ -1,24 +1,20 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import axios from 'axios'
+import * as authApi from '../api/auth'
 
 const AuthContext = createContext()
 
-const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [token, setToken] = useState(() => localStorage.getItem('SYNQ-token'))
+  const [token, setToken] = useState(() => localStorage.getItem('synq-token'))
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (token) {
-      axios.get(`${BASE}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(res => setUser(res.data.user))
+      authApi.getMe()
+        .then(data => setUser(data.user))
         .catch(() => {
           setToken(null)
-          localStorage.removeItem('SYNQ-token')
+          localStorage.removeItem('synq-token')
         })
         .finally(() => setLoading(false))
     } else {
@@ -27,31 +23,31 @@ export function AuthProvider({ children }) {
   }, [token])
 
   const login = async (email, password) => {
-    const res = await axios.post(`${BASE}/auth/login`, { email, password })
-    const { token: t, user: u } = res.data
-    setToken(t)
-    setUser(u)
-    localStorage.setItem('SYNQ-token', t)
-    return u
+    const data = await authApi.login(email, password)
+    setToken(data.token)
+    setUser(data.user)
+    localStorage.setItem('synq-token', data.token)
+    return data.user
   }
 
   const register = async (name, email, password) => {
-    const res = await axios.post(`${BASE}/auth/register`, { name, email, password })
-    const { token: t, user: u } = res.data
-    setToken(t)
-    setUser(u)
-    localStorage.setItem('SYNQ-token', t)
-    return u
+    const data = await authApi.register(name, email, password)
+    setToken(data.token)
+    setUser(data.user)
+    localStorage.setItem('synq-token', data.token)
+    return data.user
   }
 
   const logout = () => {
     setToken(null)
     setUser(null)
-    localStorage.removeItem('SYNQ-token')
+    localStorage.removeItem('synq-token')
   }
 
-  const updatePreferences = (prefs) => {
-    setUser(prev => ({ ...prev, preferences: { ...prev.preferences, ...prefs } }))
+  const updatePreferences = async (prefs) => {
+    const data = await authApi.updatePreferences(prefs)
+    setUser(data.user)
+    return data.user
   }
 
   return (

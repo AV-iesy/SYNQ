@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext'
 import toast from 'react-hot-toast'
 
 export default function Login() {
-  const { login } = useAuth()
+  const { login, register } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
@@ -18,31 +18,25 @@ export default function Login() {
   const handle = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
 
   const submit = async (e) => {
-    e.preventDefault()
-    if (!form.email || !form.password) return toast.error('Fill in all fields')
-    if (!isLogin && !form.name) return toast.error('Enter your name')
+  e.preventDefault()
+  if (!form.email || !form.password) return toast.error('Fill in all fields')
+  if (!isLogin && !form.name) return toast.error('Enter your name')
 
-    setLoading(true)
-    try {
-      if (isLogin) {
-        await login(form.email, form.password)
-      } else {
-        const { useAuth: _ } = await import('../context/AuthContext')
-        const res = await import('axios').then(m =>
-          m.default.post(
-            (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api') + '/auth/register',
-            { name: form.name, email: form.email, password: form.password }
-          )
-        )
-      }
-      toast.success(isLogin ? 'Welcome back!' : 'Account created!')
-      navigate('/dashboard')
-    } catch (err) {
-      toast.error(err?.response?.data?.error || 'Something went wrong')
-    } finally {
-      setLoading(false)
+  setLoading(true)
+  try {
+    if (isLogin) {
+      await login(form.email, form.password)
+    } else {
+      await register(form.name, form.email, form.password)
     }
+    toast.success(isLogin ? 'Welcome back!' : 'Account created!')
+    navigate('/dashboard')
+  } catch (err) {
+    toast.error(err?.response?.data?.message || 'Something went wrong')
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <div

@@ -1,24 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
 import synqLogo from '../assets/synq-logo.png'
-
-const mockTasks = [
-  { id: 1, title: 'Complete DSA chapter 3', status: 'completed', tag: 'study' },
-  { id: 2, title: 'Morning run — 5km', status: 'completed', tag: 'fitness' },
-  { id: 3, title: 'Read 20 pages', status: 'pending', tag: 'reading' },
-  { id: 4, title: 'Evening walk', status: 'pending', tag: 'fitness' },
-  { id: 5, title: 'Drink 3L water', status: 'pending', tag: 'health' },
-]
-
-const mockSchedule = [
-  { time: '6:00', label: 'Morning Gym', tag: 'workout', dot: '#ff4d00' },
-  { time: '7:30', label: 'Breakfast', tag: 'meal', dot: '#5aad7a' },
-  { time: '9:00', label: 'Classes / Office', tag: 'work', dot: '#4a90d9' },
-  { time: '5:00', label: 'DSA Study Session', tag: 'study', dot: '#8b6bc7' },
-  { time: '7:30', label: 'Dinner', tag: 'meal', dot: '#5aad7a' },
-  { time: '10:30', label: 'Sleep', tag: 'rest', dot: '#555' },
-]
+import * as taskApi from '../api/tasks'
+import * as scheduleApi from '../api/schedule'
 
 const tagStyle = {
   study:   { bg: 'rgba(139,107,199,0.15)', color: '#a78bda', border: 'rgba(139,107,199,0.3)' },
@@ -43,15 +28,8 @@ const TAG_DOTS = {
   break: '#555', default: '#888',
 }
 
-function getSavedSchedule() {
-  try {
-    const raw = localStorage.getItem('synq-schedule')
-    if (!raw) return null
-    const { date, blocks } = JSON.parse(raw)
-    const today = new Date().toISOString().split('T')[0]
-    if (date !== today) return null
-    return blocks
-  } catch { return null }
+function getTodayKey() {
+  return new Date().toISOString().split('T')[0]
 }
 
 function generateCalendarData() {
@@ -141,27 +119,27 @@ function StreakCalendar({ dark }) {
             <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
               {week.map((day, di) => (
                 <div key={di} style={{
-  width: '100%',
-  aspectRatio: '1',
-  borderRadius: '2px',
-  backgroundColor: getLevelColor(day.level, dark),
-  cursor: day.level > 0 ? 'pointer' : 'default',
-  transition: 'opacity 0.1s',
-}}
-  onMouseOver={e => { if (day.level > 0) e.currentTarget.style.opacity = '0.7' }}
-  onMouseOut={e => e.currentTarget.style.opacity = '1'}
-  onClick={() => {
-  if (day.level > 0) {
-    const [year, month, d] = day.date.split('-').map(Number)
-    localStorage.setItem('synq-calendar-nav', JSON.stringify({
-      year,
-      month: month - 1,
-      date: day.date,
-    }))
-    setTimeout(() => { window.location.href = '/calendar' }, 50)
-  }
-}}
-/>
+                  width: '100%',
+                  aspectRatio: '1',
+                  borderRadius: '2px',
+                  backgroundColor: getLevelColor(day.level, dark),
+                  cursor: day.level > 0 ? 'pointer' : 'default',
+                  transition: 'opacity 0.1s',
+                }}
+                  onMouseOver={e => { if (day.level > 0) e.currentTarget.style.opacity = '0.7' }}
+                  onMouseOut={e => e.currentTarget.style.opacity = '1'}
+                  onClick={() => {
+                    if (day.level > 0) {
+                      const [year, month] = day.date.split('-').map(Number)
+                      localStorage.setItem('synq-calendar-nav', JSON.stringify({
+                        year,
+                        month: month - 1,
+                        date: day.date,
+                      }))
+                      setTimeout(() => { window.location.href = '/calendar' }, 50)
+                    }
+                  }}
+                />
               ))}
             </div>
           ))}
@@ -223,8 +201,13 @@ function ActivityRings({ completionPct, tasksPct, studyPct }) {
 export default function Dashboard() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
-  const [tasks, setTasks] = useState(mockTasks)
+
+  const todayKey = getTodayKey()
+
+  const [tasks, setTasks] = useState([])
+  const [schedule, setSchedule] = useState(null)
   const [newTask, setNewTask] = useState('')
+  const [loading, setLoading] = useState(true)
 
   const text = dark ? '#f0f0f0' : '#0a0a0a'
   const subtle = dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'
@@ -232,19 +215,71 @@ export default function Dashboard() {
   const cardBg = dark ? '#161616' : '#ffffff'
   const hoverBorder = dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'
 
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const [tasksData, scheduleData] = await Promise.all([
+        taskApi.getTasks(todayKey),
+        scheduleApi.getSchedule(todayKey),
+      ])
+      setTasks(tasksData || [])
+      setSchedule(scheduleData?.blocks || null)
+    } catch (err) {
+      console.error('Failed to load dashboard data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const completed = tasks.filter(t => t.status === 'completed').length
-const completionPct = tasks.length === 0 ? 0 : Math.round((completed / tasks.length) * 100)
-const tasksPct = tasks.length === 0 ? 0 : Math.round((tasks.filter(t => t.status !== 'skipped').length / tasks.length) * 100)
-const studyPct = tasks.length === 0 ? 0 : 65
+  const completionPct = tasks.length === 0 ? 0 : Math.round((completed / tasks.length) * 100)
+  const tasksPct = tasks.length === 0 ? 0 : Math.round((tasks.length / tasks.length) * 100)
+  const studyPct = tasks.length === 0 ? 0 : 65
 
-  const toggleStatus = (id) =>
-    setTasks(prev => prev.map(t => t.id !== id ? t : { ...t, status: t.status === 'completed' ? 'pending' : 'completed' }))
+  const toggleStatus = async (task) => {
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed'
+    setTasks(prev => prev.map(t => t._id === task._id ? { ...t, status: newStatus } : t))
+    try {
+      await taskApi.updateTask(task._id, { status: newStatus })
+    } catch (err) {
+      console.error('Failed to update task:', err)
+      setTasks(prev => prev.map(t => t._id === task._id ? { ...t, status: task.status } : t))
+    }
+  }
 
-  const addTask = (e) => {
+  const addTask = async (e) => {
     e.preventDefault()
     if (!newTask.trim()) return
-    setTasks(prev => [...prev, { id: Date.now(), title: newTask.trim(), status: 'pending', tag: 'general' }])
+    const title = newTask.trim()
     setNewTask('')
+    try {
+      const created = await taskApi.createTask(title, todayKey)
+      setTasks(prev => [...prev, created])
+    } catch (err) {
+      console.error('Failed to add task:', err)
+    }
+  }
+
+  const clearAllTasks = async () => {
+    try {
+      await taskApi.clearAllTasks(todayKey)
+      setTasks([])
+    } catch (err) {
+      console.error('Failed to clear tasks:', err)
+    }
+  }
+
+  const clearSchedule = async () => {
+    try {
+      await scheduleApi.deleteSchedule(todayKey)
+      setSchedule(null)
+    } catch (err) {
+      console.error('Failed to clear schedule:', err)
+    }
   }
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -257,19 +292,27 @@ const studyPct = tasks.length === 0 ? 0 : 65
     ...extra,
   })
 
-  const displaySchedule = getSavedSchedule() || mockSchedule
+  if (loading) {
+    return (
+      <AppLayout>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: subtle, fontFamily: 'Inter, sans-serif', fontSize: '14px' }}>
+          Loading your dashboard...
+        </div>
+      </AppLayout>
+    )
+  }
 
   return (
     <AppLayout>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '36px' }}>
-  <div>
-    <p style={{ fontSize: '13px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '6px' }}>{today}</p>
-    <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '40px', fontWeight: 700, color: text, letterSpacing: '-1.5px', lineHeight: 1 }}>
-      <span style={{ color: '#ff4d00' }}>Dashboard</span> 
-    </h1>
-  </div>
-  <img src={synqLogo} alt="SYNQ" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
-</div>
+        <div>
+          <p style={{ fontSize: '13px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '6px' }}>{today}</p>
+          <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '40px', fontWeight: 700, color: text, letterSpacing: '-1.5px', lineHeight: 1 }}>
+            <span style={{ color: '#ff4d00' }}>Dashboard</span>
+          </h1>
+        </div>
+        <img src={synqLogo} alt="SYNQ" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '16px', marginBottom: '16px' }}>
         <div style={card()}>
@@ -300,9 +343,9 @@ const studyPct = tasks.length === 0 ? 0 : 65
               Today's Schedule
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              {getSavedSchedule() && (
+              {schedule && (
                 <button
-                  onClick={() => { localStorage.removeItem('synq-schedule'); window.location.reload() }}
+                  onClick={clearSchedule}
                   style={{ fontSize: '12px', color: '#ff4d00', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
                 >
                   Clear
@@ -313,52 +356,57 @@ const studyPct = tasks.length === 0 ? 0 : 65
               </a>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
-  {displaySchedule.map((block, i) => {
-              const ts = tagStyle[block.tag] || tagStyle.rest
-              return (
-                <div key={i} style={{
-                  display: 'flex', alignItems: 'center', gap: '12px',
-                  padding: '10px 14px', borderRadius: '12px',
-                  backgroundColor: dark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-                  border: `1px solid ${faint}`, transition: 'border-color 0.2s',
-
-
-                  
-                }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = hoverBorder}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = faint}
-                >
-                  <span style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif', minWidth: '36px' }}>{block.time}</span>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: block.dot || TAG_DOTS[block.tag] || '#888', flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: '13px', color: text, fontFamily: 'Inter, sans-serif' }}>{block.label}</span>
-                  <span style={{
-                    fontSize: '10px', padding: '3px 10px', borderRadius: '100px',
-                    color: ts.color, backgroundColor: ts.bg,
-                    border: `1px solid ${ts.border}`,
-                    fontFamily: 'Inter, sans-serif',
-                  }}>{block.tag}</span>
-                </div>
-              )
-            })}
-          </div>
+          {schedule && schedule.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
+              {schedule.map((block, i) => {
+                const ts = tagStyle[block.tag] || tagStyle.rest
+                return (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    padding: '10px 14px', borderRadius: '12px',
+                    backgroundColor: dark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                    border: `1px solid ${faint}`, transition: 'border-color 0.2s',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = hoverBorder}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = faint}
+                  >
+                    <span style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif', minWidth: '36px' }}>{block.time}</span>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: TAG_DOTS[block.tag] || '#888', flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: '13px', color: text, fontFamily: 'Inter, sans-serif' }}>{block.label}</span>
+                    <span style={{
+                      fontSize: '10px', padding: '3px 10px', borderRadius: '100px',
+                      color: ts.color, backgroundColor: ts.bg,
+                      border: `1px solid ${ts.border}`,
+                      fontFamily: 'Inter, sans-serif',
+                    }}>{block.tag}</span>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: subtle, fontSize: '13px', fontFamily: 'Inter, sans-serif' }}>
+              No schedule yet — <a href="/planner" style={{ color: '#ff4d00', textDecoration: 'none' }}>create one in Planner</a>
+            </div>
+          )}
         </div>
 
         <div style={card()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-  <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text, letterSpacing: '-0.3px' }}>
-    Tasks
-  </div>
-  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-    <button
-      onClick={() => setTasks([])}
-      style={{ fontSize: '12px', color: subtle, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
-    >
-      Clear all
-    </button>
-    <span style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{completed}/{tasks.length} done</span>
-  </div>
-</div>
+            <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text, letterSpacing: '-0.3px' }}>
+              Tasks
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {tasks.length > 0 && (
+                <button
+                  onClick={clearAllTasks}
+                  style={{ fontSize: '12px', color: subtle, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
+                >
+                  Clear all
+                </button>
+              )}
+              <span style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{completed}/{tasks.length} done</span>
+            </div>
+          </div>
 
           <div style={{ height: '3px', backgroundColor: faint, borderRadius: '2px', marginBottom: '16px', overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${completionPct}%`, backgroundColor: '#ff4d00', borderRadius: '2px', transition: 'width 0.4s ease' }} />
@@ -368,7 +416,7 @@ const studyPct = tasks.length === 0 ? 0 : 65
             {tasks.map(task => {
               const ts = tagStyle[task.tag] || tagStyle.rest
               return (
-                <div key={task.id} style={{
+                <div key={task._id} style={{
                   display: 'flex', alignItems: 'center', gap: '10px',
                   padding: '10px 14px', borderRadius: '12px',
                   backgroundColor: dark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
@@ -377,7 +425,7 @@ const studyPct = tasks.length === 0 ? 0 : 65
                   onMouseEnter={e => e.currentTarget.style.borderColor = hoverBorder}
                   onMouseLeave={e => e.currentTarget.style.borderColor = faint}
                 >
-                  <button onClick={() => toggleStatus(task.id)} style={{
+                  <button onClick={() => toggleStatus(task)} style={{
                     width: '18px', height: '18px', borderRadius: '5px', flexShrink: 0,
                     border: `1.5px solid ${task.status === 'completed' ? '#ff4d00' : dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}`,
                     backgroundColor: task.status === 'completed' ? '#ff4d00' : 'transparent',
@@ -406,6 +454,11 @@ const studyPct = tasks.length === 0 ? 0 : 65
                 </div>
               )
             })}
+            {tasks.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: subtle, fontSize: '13px', fontFamily: 'Inter, sans-serif' }}>
+                No tasks yet — add one below
+              </div>
+            )}
           </div>
 
           <form onSubmit={addTask} style={{ display: 'flex', gap: '8px' }}>
