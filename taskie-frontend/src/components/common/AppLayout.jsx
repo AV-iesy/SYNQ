@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
+import InteractiveHoverButton from './InteractiveHoverButton'
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -102,13 +103,9 @@ export default function AppLayout({ children }) {
             }}>
               {user?.email || ''}
             </div>
-            <button onClick={() => { logout(); navigate('/') }} style={{
-              fontSize: '12px', fontFamily: 'Inter, sans-serif',
-              color: '#ff4d00', background: 'none',
-              border: 'none', cursor: 'pointer', padding: 0,
-            }}>
-              Log out →
-            </button>
+            <InteractiveHoverButton onClick={() => { logout(); navigate('/') }} dark={dark}>
+  Log out →
+</InteractiveHoverButton>
           </div>
         </div>
       </aside>

@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
+import * as journalApi from '../api/journal'
+import * as scheduleApi from '../api/schedule'
+import LoadingSplash from '../components/common/LoadingSplash'
 
 const MOODS = [
   { key: 'great', label: 'Great', color: '#ff4d00' },
@@ -12,28 +15,6 @@ const MOODS = [
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const DAYS = ['S','M','T','W','T','F','S']
-
-function getEntries() {
-  try {
-    const raw = localStorage.getItem('synq-journal')
-    return raw ? JSON.parse(raw) : {}
-  } catch { return {} }
-}
-
-function saveEntries(entries) {
-  localStorage.setItem('synq-journal', JSON.stringify(entries))
-}
-
-function getTodaysSavedSchedule() {
-  try {
-    const raw = localStorage.getItem('synq-schedule')
-    if (!raw) return null
-    const { date, blocks } = JSON.parse(raw)
-    const today = new Date().toISOString().split('T')[0]
-    if (date !== today) return null
-    return blocks
-  } catch { return null }
-}
 
 function buildAIDraft(blocks) {
   if (!blocks || blocks.length === 0) {
@@ -61,10 +42,11 @@ export default function Journal() {
   const today = new Date()
   const todayKey = today.toISOString().split('T')[0]
 
-  const [entries, setEntries] = useState(getEntries())
+  const [entries, setEntries] = useState({}) // keyed by date
+  const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(todayKey)
-  const [draftMood, setDraftMood] = useState(entries[todayKey]?.mood || null)
-  const [draftText, setDraftText] = useState(entries[todayKey]?.text || '')
+  const [draftMood, setDraftMood] = useState(null)
+  const [draftText, setDraftText] = useState('')
   const [saved, setSaved] = useState(false)
   const [calMonth, setCalMonth] = useState(today.getMonth())
   const [calYear, setCalYear] = useState(today.getFullYear())
@@ -86,36 +68,67 @@ export default function Journal() {
 
   const isToday = selectedDate === todayKey
 
+  useEffect(() => {
+    loadEntries()
+  }, [])
+
+  const loadEntries = async () => {
+    setLoading(true)
+    try {
+      const list = await journalApi.getAllEntries()
+      const byDate = {}
+      list.forEach(e => { byDate[e.date] = e })
+      setEntries(byDate)
+      setDraftMood(byDate[todayKey]?.mood || null)
+      setDraftText(byDate[todayKey]?.text || '')
+    } catch (err) {
+      console.error('Failed to load journal entries:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const selectDate = (dateKey) => {
     setSelectedDate(dateKey)
     setDraftMood(entries[dateKey]?.mood || null)
     setDraftText(entries[dateKey]?.text || '')
   }
 
-  const handleAIDraft = () => {
-    const blocks = getTodaysSavedSchedule()
-    setDraftText(buildAIDraft(blocks))
-  }
-
-  const handleSave = () => {
-    const updated = {
-      ...entries,
-      [selectedDate]: { mood: draftMood, text: draftText, date: selectedDate },
+  const handleAIDraft = async () => {
+    try {
+      const scheduleData = await scheduleApi.getSchedule(todayKey)
+      setDraftText(buildAIDraft(scheduleData?.blocks))
+    } catch (err) {
+      console.error('Failed to build AI draft:', err)
+      setDraftText(buildAIDraft(null))
     }
-    setEntries(updated)
-    saveEntries(updated)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 1800)
   }
 
-  const handleDelete = (dateKey) => {
-    const updated = { ...entries }
-    delete updated[dateKey]
-    setEntries(updated)
-    saveEntries(updated)
-    if (selectedDate === dateKey) {
-      setDraftMood(null)
-      setDraftText('')
+  const handleSave = async () => {
+    try {
+      const entry = await journalApi.saveEntry(selectedDate, draftMood, draftText)
+      setEntries(prev => ({ ...prev, [selectedDate]: entry }))
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1800)
+    } catch (err) {
+      console.error('Failed to save journal entry:', err)
+    }
+  }
+
+  const handleDelete = async (dateKey) => {
+    try {
+      await journalApi.deleteEntry(dateKey)
+      setEntries(prev => {
+        const updated = { ...prev }
+        delete updated[dateKey]
+        return updated
+      })
+      if (selectedDate === dateKey) {
+        setDraftMood(null)
+        setDraftText('')
+      }
+    } catch (err) {
+      console.error('Failed to delete journal entry:', err)
     }
   }
 
@@ -139,6 +152,14 @@ export default function Journal() {
     else setCalMonth(m => m + 1)
   }
 
+  if (loading) {
+  return (
+    <AppLayout>
+      <LoadingSplash label="Loading your journal..." />
+    </AppLayout>
+  )
+}
+
   return (
     <AppLayout>
       <div style={{ marginBottom: '28px' }}>
@@ -146,7 +167,7 @@ export default function Journal() {
           {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </p>
         <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '45px', fontWeight: 800, color: text, letterSpacing: '-1px' }}>
-          <span style={{ color: '#ff4d00' }}>Journal</span> 
+          <span style={{ color: '#ff4d00' }}>Journal</span>
         </h1>
       </div>
 

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import toast from 'react-hot-toast'
+import ShineBorder from '../components/common/ShineBorder'
 
 export default function Login() {
   const { login, register } = useAuth()
@@ -74,13 +75,17 @@ export default function Login() {
       </Link>
 
       {/* Card */}
-      <div
-        className="w-full max-w-sm rounded-2xl p-8"
-        style={{
-          background: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-          border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
-        }}
-      >
+      {/* Card */}
+<div
+  className="w-full max-w-sm rounded-2xl p-8"
+  style={{
+    position: 'relative',
+    background: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+    border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
+    overflow: 'hidden',
+  }}
+>
+  <ShineBorder shineColor={['#ff4d00', '#ff8a4d', '#ffd9b3']} borderWidth={1.5} duration={6} />
         {/* Toggle */}
         <div
           className="flex rounded-xl p-1 mb-8"

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
-import synqLogo from '../assets/synq-logo.png'
+import InfinityIcon from '../components/common/InfinityIcon'
+import LoadingSplash from '../components/common/LoadingSplash'
 import * as taskApi from '../api/tasks'
 import * as scheduleApi from '../api/schedule'
 
@@ -32,19 +33,18 @@ function getTodayKey() {
   return new Date().toISOString().split('T')[0]
 }
 
-function generateCalendarData() {
+function buildCalendarData(scheduleDates) {
   const days = []
   const today = new Date()
   for (let i = 195; i >= 0; i--) {
     const d = new Date(today)
     d.setDate(today.getDate() - i)
-    const rand = Math.random()
-    const level = i === 0 ? 3 : rand > 0.6 ? Math.floor(Math.random() * 4) : 0
-    days.push({ date: d.toISOString().split('T')[0], level })
+    const key = d.toISOString().split('T')[0]
+    const level = scheduleDates.has(key) ? 4 : 0
+    days.push({ date: key, level })
   }
   return days
 }
-const calendarData = generateCalendarData()
 
 function getLevelColor(level, dark) {
   if (level === 0) return dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'
@@ -52,7 +52,7 @@ function getLevelColor(level, dark) {
   return colors[level]
 }
 
-function StreakCalendar({ dark }) {
+function StreakCalendar({ dark, calendarData }) {
   const text = dark ? '#f0f0f0' : '#0a0a0a'
   const subtle = dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)'
 
@@ -63,11 +63,22 @@ function StreakCalendar({ dark }) {
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   const days = ['M','T','W','T','F','S','S']
 
-  let streak = 0
-  for (let i = calendarData.length - 1; i >= 0; i--) {
-    if (calendarData[i].level > 0) streak++
-    else break
+ let streak = 0
+for (let i = calendarData.length - 1; i >= 0; i--) {
+  if (calendarData[i].level > 0) streak++
+  else break
+}
+
+let bestStreak = 0
+let current = 0
+for (let i = 0; i < calendarData.length; i++) {
+  if (calendarData[i].level > 0) {
+    current++
+    bestStreak = Math.max(bestStreak, current)
+  } else {
+    current = 0
   }
+}
 
   return (
     <div style={{ width: '100%' }}>
@@ -80,9 +91,9 @@ function StreakCalendar({ dark }) {
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>Best</div>
-          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text }}>12 days</div>
-        </div>
+  <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>Best</div>
+  <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text }}>{bestStreak} days</div>
+</div>
       </div>
 
       <div style={{ display: 'flex', marginBottom: '3px', paddingLeft: '18px' }}>
@@ -162,7 +173,7 @@ function ActivityRings({ completionPct, tasksPct, studyPct }) {
   const rings = [
     { pct: completionPct, color: '#ff4d00', track: 'rgba(255,77,0,0.12)', label: 'Completion' },
     { pct: tasksPct,      color: '#5aad7a', track: 'rgba(90,173,122,0.12)', label: 'Tasks' },
-    { pct: studyPct,      color: '#4a90d9', track: 'rgba(74,144,217,0.12)', label: 'Study' },
+    { pct: studyPct,      color: '#4a90d9', track: 'rgba(74,144,217,0.12)', label: 'Focus' },
   ]
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
@@ -205,9 +216,13 @@ export default function Dashboard() {
   const todayKey = getTodayKey()
 
   const [tasks, setTasks] = useState([])
-  const [schedule, setSchedule] = useState(null)
-  const [newTask, setNewTask] = useState('')
-  const [loading, setLoading] = useState(true)
+const [schedule, setSchedule] = useState(null)
+const [calendarData, setCalendarData] = useState([])
+const [newTask, setNewTask] = useState('')
+const [loading, setLoading] = useState(true)
+const [confirmTask, setConfirmTask] = useState(null)
+const [partialTask, setPartialTask] = useState(null)
+const [adjustText, setAdjustText] = useState('')
 
   const text = dark ? '#f0f0f0' : '#0a0a0a'
   const subtle = dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'
@@ -220,36 +235,96 @@ export default function Dashboard() {
   }, [])
 
   const loadData = async () => {
-    setLoading(true)
-    try {
-      const [tasksData, scheduleData] = await Promise.all([
-        taskApi.getTasks(todayKey),
-        scheduleApi.getSchedule(todayKey),
-      ])
-      setTasks(tasksData || [])
-      setSchedule(scheduleData?.blocks || null)
-    } catch (err) {
-      console.error('Failed to load dashboard data:', err)
-    } finally {
-      setLoading(false)
-    }
+  setLoading(true)
+  try {
+    const [tasksData, scheduleData, allSchedules] = await Promise.all([
+      taskApi.getTasks(todayKey),
+      scheduleApi.getSchedule(todayKey),
+      scheduleApi.getAllSchedules(),
+    ])
+    setTasks(tasksData || [])
+    setSchedule(scheduleData?.blocks || null)
+
+    const scheduleDates = new Set((allSchedules || []).map(s => s.date))
+    setCalendarData(buildCalendarData(scheduleDates))
+  } catch (err) {
+    console.error('Failed to load dashboard data:', err)
+  } finally {
+    setLoading(false)
   }
+}
 
   const completed = tasks.filter(t => t.status === 'completed').length
-  const completionPct = tasks.length === 0 ? 0 : Math.round((completed / tasks.length) * 100)
-  const tasksPct = tasks.length === 0 ? 0 : Math.round((tasks.length / tasks.length) * 100)
-  const studyPct = tasks.length === 0 ? 0 : 65
+const completionPct = tasks.length === 0 ? 0 : Math.round((completed / tasks.length) * 100)
+const tasksPct = tasks.length === 0 ? 0 : Math.round((tasks.length / tasks.length) * 100)
 
-  const toggleStatus = async (task) => {
-    const newStatus = task.status === 'completed' ? 'pending' : 'completed'
-    setTasks(prev => prev.map(t => t._id === task._id ? { ...t, status: newStatus } : t))
-    try {
-      await taskApi.updateTask(task._id, { status: newStatus })
-    } catch (err) {
-      console.error('Failed to update task:', err)
-      setTasks(prev => prev.map(t => t._id === task._id ? { ...t, status: task.status } : t))
-    }
+const focusMinutes = (schedule || [])
+  .filter(b => b.tag === 'study' || b.tag === 'work')
+  .reduce((total, b) => {
+    const [sh, sm] = b.time.split(':').map(Number)
+    const [eh, em] = b.endTime.split(':').map(Number)
+    return total + ((eh * 60 + em) - (sh * 60 + sm))
+  }, 0)
+
+const focusHoursText = focusMinutes === 0
+  ? '—'
+  : focusMinutes >= 60
+    ? `${Math.floor(focusMinutes / 60)}h ${focusMinutes % 60 > 0 ? `${focusMinutes % 60}m` : ''}`.trim()
+    : `${focusMinutes}m`
+
+const focusPct = focusMinutes === 0 ? 0 : Math.min(100, Math.round((focusMinutes / 240) * 100)) // assumes 4hr daily goal
+
+  const toggleStatus = (task) => {
+  // Unchecking a completed/partial task → just go back to pending, no popup needed
+  if (task.status === 'completed' || task.status === 'partial') {
+    updateTaskStatus(task, 'pending')
+    return
   }
+  // Checking off a pending task → ask for confirmation first
+  setConfirmTask(task)
+}
+
+const updateTaskStatus = async (task, newStatus, newTitle = null) => {
+  setTasks(prev => prev.map(t => t._id === task._id ? { ...t, status: newStatus, ...(newTitle ? { title: newTitle } : {}) } : t))
+  try {
+    const updates = { status: newStatus }
+    if (newTitle) updates.title = newTitle
+    await taskApi.updateTask(task._id, updates)
+  } catch (err) {
+    console.error('Failed to update task:', err)
+    setTasks(prev => prev.map(t => t._id === task._id ? { ...t, status: task.status, title: task.title } : t))
+  }
+}
+
+const handleFullyDone = () => {
+  updateTaskStatus(confirmTask, 'completed')
+  setConfirmTask(null)
+}
+
+const handlePartial = () => {
+  setPartialTask(confirmTask)
+  setConfirmTask(null)
+}
+
+const handleRemindTomorrow = async () => {
+  const todayDate = new Date(todayKey)
+  const tomorrow = new Date(todayDate)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const tomorrowKey = tomorrow.toISOString().split('T')[0]
+
+  try {
+    await taskApi.createTask(partialTask.title, tomorrowKey, partialTask.tag)
+    updateTaskStatus(partialTask, 'partial')
+  } catch (err) {
+    console.error('Failed to create reminder task:', err)
+  }
+  setPartialTask(null)
+}
+
+const handleAdjustNow = (newTitle) => {
+  updateTaskStatus(partialTask, 'completed', newTitle)
+  setPartialTask(null)
+}
 
   const addTask = async (e) => {
     e.preventDefault()
@@ -292,15 +367,13 @@ export default function Dashboard() {
     ...extra,
   })
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: subtle, fontFamily: 'Inter, sans-serif', fontSize: '14px' }}>
-          Loading your dashboard...
-        </div>
-      </AppLayout>
-    )
-  }
+ if (loading) {
+  return (
+    <AppLayout>
+      <LoadingSplash label="Loading your dashboard..." />
+    </AppLayout>
+  )
+}
 
   return (
     <AppLayout>
@@ -311,7 +384,7 @@ export default function Dashboard() {
             <span style={{ color: '#ff4d00' }}>Dashboard</span>
           </h1>
         </div>
-        <img src={synqLogo} alt="SYNQ" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+        <InfinityIcon size={64} color="#FF0000" strokeWidth={2.5} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -319,9 +392,9 @@ export default function Dashboard() {
           <div style={{ fontSize: '11px', fontFamily: 'Inter, sans-serif', color: subtle, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '20px' }}>
             Today's Activity
           </div>
-          <ActivityRings completionPct={completionPct} tasksPct={tasksPct} studyPct={studyPct} />
+          <ActivityRings completionPct={completionPct} tasksPct={tasksPct} studyPct={focusPct} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '20px' }}>
-            {[{ label: 'Tasks Done', value: `${completed}/${tasks.length}` }, { label: 'Study Hours', value: '2h 30m' }].map(s => (
+           {[{ label: 'Tasks Done', value: `${completed}/${tasks.length}` }, { label: 'Focus Hours', value: focusHoursText }].map(s => (
               <div key={s.label} style={{ padding: '12px', borderRadius: '12px', backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${faint}` }}>
                 <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>{s.label}</div>
                 <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '20px', fontWeight: 700, color: text }}>{s.value}</div>
@@ -331,17 +404,17 @@ export default function Dashboard() {
         </div>
 
         <div style={{ ...card(), overflow: 'visible', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <StreakCalendar dark={dark} />
-        </div>
+  <StreakCalendar dark={dark} calendarData={calendarData} />
+</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'stretch' }}>
 
-        <div style={card()}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text, letterSpacing: '-0.3px' }}>
-              Today's Schedule
-            </div>
+        <div style={{ ...card(), display: 'flex', flexDirection: 'column' }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+    <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text, letterSpacing: '-0.3px' }}>
+      Today's Schedule
+    </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               {schedule && (
                 <button
@@ -357,7 +430,7 @@ export default function Dashboard() {
             </div>
           </div>
           {schedule && schedule.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
               {schedule.map((block, i) => {
                 const ts = tagStyle[block.tag] || tagStyle.rest
                 return (
@@ -390,11 +463,11 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div style={card()}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text, letterSpacing: '-0.3px' }}>
-              Tasks
-            </div>
+        <div style={{ ...card(), display: 'flex', flexDirection: 'column' }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+    <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 600, color: text, letterSpacing: '-0.3px' }}>
+      Tasks
+    </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               {tasks.length > 0 && (
                 <button
@@ -412,8 +485,8 @@ export default function Dashboard() {
             <div style={{ height: '100%', width: `${completionPct}%`, backgroundColor: '#ff4d00', borderRadius: '2px', transition: 'width 0.4s ease' }} />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
-            {tasks.map(task => {
+          <div className="schedule-scroll" style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px', flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+  {tasks.map(task => {
               const ts = tagStyle[task.tag] || tagStyle.rest
               return (
                 <div key={task._id} style={{
@@ -426,31 +499,42 @@ export default function Dashboard() {
                   onMouseLeave={e => e.currentTarget.style.borderColor = faint}
                 >
                   <button onClick={() => toggleStatus(task)} style={{
-                    width: '18px', height: '18px', borderRadius: '5px', flexShrink: 0,
-                    border: `1.5px solid ${task.status === 'completed' ? '#ff4d00' : dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}`,
-                    backgroundColor: task.status === 'completed' ? '#ff4d00' : 'transparent',
-                    cursor: 'pointer', padding: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'all 0.15s',
-                  }}>
-                    {task.status === 'completed' && (
-                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                        <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </button>
-                  <span style={{
-                    flex: 1, fontSize: '13px', fontFamily: 'Inter, sans-serif',
-                    color: task.status === 'completed' ? subtle : text,
-                    textDecoration: task.status === 'completed' ? 'line-through' : 'none',
-                    transition: 'all 0.2s',
-                  }}>{task.title}</span>
-                  <span style={{
-                    fontSize: '10px', padding: '3px 10px', borderRadius: '100px',
-                    color: ts.color, backgroundColor: ts.bg,
-                    border: `1px solid ${ts.border}`,
-                    fontFamily: 'Inter, sans-serif',
-                  }}>{task.tag}</span>
+  width: '18px', height: '18px', borderRadius: '5px', flexShrink: 0,
+  border: `1.5px solid ${task.status === 'completed' ? '#ff4d00' : task.status === 'partial' ? '#c9944a' : dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}`,
+  backgroundColor: task.status === 'completed' ? '#ff4d00' : task.status === 'partial' ? '#c9944a' : 'transparent',
+  cursor: 'pointer', padding: 0,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  transition: 'all 0.15s',
+}}>
+  {task.status === 'completed' && (
+    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+      <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )}
+  {task.status === 'partial' && (
+    <div style={{ width: '7px', height: '2px', backgroundColor: 'white', borderRadius: '1px' }} />
+  )}
+</button>
+<span style={{
+  flex: 1, fontSize: '13px', fontFamily: 'Inter, sans-serif',
+  color: task.status === 'completed' ? subtle : text,
+  textDecoration: task.status === 'completed' ? 'line-through' : 'none',
+  transition: 'all 0.2s',
+}}>{task.title}</span>
+{task.status === 'partial' && (
+  <span style={{
+    fontSize: '9px', padding: '3px 9px', borderRadius: '100px',
+    color: '#c9944a', backgroundColor: 'rgba(201,148,74,0.15)',
+    border: '1px solid rgba(201,148,74,0.3)',
+    fontFamily: 'Inter, sans-serif', fontWeight: 600,
+  }}>Partial</span>
+)}
+<span style={{
+  fontSize: '10px', padding: '3px 10px', borderRadius: '100px',
+  color: ts.color, backgroundColor: ts.bg,
+  border: `1px solid ${ts.border}`,
+  fontFamily: 'Inter, sans-serif',
+}}>{task.tag}</span>
                 </div>
               )
             })}
@@ -484,6 +568,155 @@ export default function Dashboard() {
           </form>
         </div>
       </div>
+
+      {/* Confirmation modal — did you fully complete this? */}
+      {confirmTask && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000,
+        }} onClick={() => setConfirmTask(null)}>
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              backgroundColor: cardBg, border: `1px solid ${faint}`,
+              borderRadius: '18px', padding: '28px', width: '380px',
+            }}
+          >
+            <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '17px', fontWeight: 600, color: text, marginBottom: '8px' }}>
+              Did you fully complete this?
+            </div>
+            <div style={{
+              fontSize: '14px', color: '#ff4d00', fontFamily: 'Inter, sans-serif',
+              padding: '10px 14px', borderRadius: '10px', marginBottom: '20px',
+              backgroundColor: 'rgba(255,77,0,0.08)', border: '1px solid rgba(255,77,0,0.2)',
+            }}>
+              {confirmTask.title}
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setConfirmTask(null)}
+                style={{
+                  flex: 1, padding: '11px', borderRadius: '10px', fontSize: '13px',
+                  fontFamily: 'Inter, sans-serif', cursor: 'pointer',
+                  backgroundColor: 'transparent', border: `1px solid ${faint}`, color: subtle,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePartial}
+                style={{
+                  flex: 1, padding: '11px', borderRadius: '10px', fontSize: '13px',
+                  fontFamily: 'Inter, sans-serif', fontWeight: 500, cursor: 'pointer',
+                  backgroundColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                  border: `1px solid ${faint}`, color: text,
+                }}
+              >
+                No, partially
+              </button>
+              <button
+                onClick={handleFullyDone}
+                style={{
+                  flex: 1, padding: '11px', borderRadius: '10px', fontSize: '13px',
+                  fontFamily: 'Bricolage Grotesque, sans-serif', fontWeight: 700, cursor: 'pointer',
+                  backgroundColor: '#5aad7a', color: 'white', border: 'none',
+                }}
+              >
+                Yes, done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Partial completion follow-up */}
+      {partialTask && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000,
+        }} onClick={() => { setPartialTask(null); setAdjustText('') }}>
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              backgroundColor: cardBg, border: `1px solid ${faint}`,
+              borderRadius: '18px', padding: '28px', width: '420px',
+            }}
+          >
+            <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '17px', fontWeight: 600, color: text, marginBottom: '8px' }}>
+              No problem — what now?
+            </div>
+            <div style={{
+              fontSize: '14px', color: '#ff4d00', fontFamily: 'Inter, sans-serif',
+              padding: '10px 14px', borderRadius: '10px', marginBottom: '20px',
+              backgroundColor: 'rgba(255,77,0,0.08)', border: '1px solid rgba(255,77,0,0.2)',
+            }}>
+              {partialTask.title}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+              <button
+                onClick={handleRemindTomorrow}
+                style={{
+                  textAlign: 'left', padding: '14px 16px', borderRadius: '12px',
+                  backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  border: `1px solid ${faint}`, cursor: 'pointer',
+                }}
+              >
+                <div style={{ fontSize: '13px', fontFamily: 'Inter, sans-serif', fontWeight: 500, color: text, marginBottom: '2px' }}>
+                  Remind me tomorrow
+                </div>
+                <div style={{ fontSize: '11px', fontFamily: 'Inter, sans-serif', color: subtle }}>
+                  Marks today as partial and adds this to tomorrow's tasks
+                </div>
+              </button>
+            </div>
+
+            <div style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+              Or adjust to reflect what you actually did
+            </div>
+            <input
+              value={adjustText}
+              onChange={e => setAdjustText(e.target.value)}
+              placeholder={`e.g. "${partialTask.title.replace(/\d+/, '2')}"`}
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: '10px',
+                fontSize: '13px', fontFamily: 'Inter, sans-serif',
+                backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                border: `1px solid ${faint}`, color: text, outline: 'none', marginBottom: '12px',
+              }}
+              onFocus={e => e.target.style.borderColor = '#ff4d00'}
+              onBlur={e => e.target.style.borderColor = faint}
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => { setPartialTask(null); setAdjustText('') }}
+                style={{
+                  flex: 1, padding: '11px', borderRadius: '10px', fontSize: '13px',
+                  fontFamily: 'Inter, sans-serif', cursor: 'pointer',
+                  backgroundColor: 'transparent', border: `1px solid ${faint}`, color: subtle,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { if (adjustText.trim()) { handleAdjustNow(adjustText.trim()); setAdjustText('') } }}
+                disabled={!adjustText.trim()}
+                style={{
+                  flex: 1, padding: '11px', borderRadius: '10px', fontSize: '13px',
+                  fontFamily: 'Bricolage Grotesque, sans-serif', fontWeight: 700,
+                  cursor: adjustText.trim() ? 'pointer' : 'not-allowed',
+                  backgroundColor: adjustText.trim() ? '#ff4d00' : faint,
+                  color: adjustText.trim() ? 'white' : subtle, border: 'none',
+                }}
+              >
+                Save & mark done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }

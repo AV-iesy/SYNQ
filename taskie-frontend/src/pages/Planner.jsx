@@ -2,6 +2,8 @@ import { useState } from 'react'
 import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
 import synqLogo from '../assets/synq-logo.png'
+import * as scheduleApi from '../api/schedule'
+import * as taskApi from '../api/tasks'
 
 const TAG_COLORS = {
   sleep:    { color: '#8b6bc7', bg: 'rgba(139,107,199,0.15)', border: 'rgba(139,107,199,0.3)' },
@@ -94,12 +96,14 @@ Rules:
       })
 
       const raw = completion.choices[0]?.message?.content || ''
+console.log('RAW AI OUTPUT:', raw)
 let cleaned = raw.replace(/```json|```/g, '').trim()
 
 // Extract just the JSON array portion in case the model added extra text
 const arrayMatch = cleaned.match(/\[[\s\S]*\]/)
 if (arrayMatch) cleaned = arrayMatch[0]
 
+console.log('CLEANED OUTPUT:', cleaned)
 const blocks = JSON.parse(cleaned)
 
       if (!Array.isArray(blocks)) throw new Error('Invalid response')
@@ -112,15 +116,24 @@ const blocks = JSON.parse(cleaned)
     }
   }
 
-  const saveToDashboard = () => {
-    const today = new Date().toISOString().split('T')[0]
-    localStorage.setItem('synq-schedule', JSON.stringify({
-      date: today,
-      blocks: schedule,
-    }))
+  const saveToDashboard = async () => {
+  const today = new Date().toISOString().split('T')[0]
+  try {
+    await scheduleApi.saveSchedule(today, schedule, input)
+
+    // Also push schedule blocks into real Tasks (skip wake/sleep/break)
+    const taskableBlocks = schedule.filter(b => !['wake', 'sleep', 'break'].includes(b.tag))
+    await Promise.all(
+      taskableBlocks.map(b => taskApi.createTask(b.label, today, b.tag).catch(() => null))
+    )
+
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  } catch (err) {
+    console.error('Failed to save schedule:', err)
+    setError('Could not save schedule. Please try again.')
   }
+}
 
   return (
     <AppLayout>

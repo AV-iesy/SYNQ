@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext'
 import PrivateRoute from './components/common/PrivateRoute'
 
 import Landing from './pages/Landing'
+import Showcase from './pages/Showcase'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
@@ -32,6 +33,7 @@ export default function App() {
           />
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/showcase" element={<Showcase />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route element={<PrivateRoute />}>

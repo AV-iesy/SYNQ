@@ -1,38 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
-
-function generateHistory() {
-  const data = {}
-  const today = new Date()
-  for (let i = 365; i >= 0; i--) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - i)
-    const key = d.toISOString().split('T')[0]
-    const rand = Math.random()
-    if (rand > 0.35) {
-      const level = rand > 0.85 ? 4 : rand > 0.65 ? 3 : rand > 0.5 ? 2 : 1
-      const taskSets = [
-        ['DSA Practice', 'Morning Run', 'Read 20 pages', 'Drink water'],
-        ['Physics revision', 'Evening walk', 'Drink 3L water', 'Journal'],
-        ['React project', 'Gym session', 'Journal entry', 'Study group'],
-        ['Math problems', 'Study group', 'Meal prep', 'Evening run'],
-        ['Code review', 'Meditation', 'Evening run', 'DSA problems'],
-      ]
-      const tasks = taskSets[Math.floor(Math.random() * taskSets.length)]
-      data[key] = {
-        level,
-        completed: tasks.slice(0, level + 1),
-        total: 5,
-        studyHours: Math.floor(Math.random() * 4) + 1,
-        completionPct: Math.round((level / 4) * 100),
-      }
-    }
-  }
-  return data
-}
-
-const historyData = generateHistory()
+import * as scheduleApi from '../api/schedule'
+import * as taskApi from '../api/tasks'
+import LoadingSplash from '../components/common/LoadingSplash'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const SHORT_MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
@@ -70,26 +41,93 @@ function StackedRings({ completionPct, tasksPct, studyPct }) {
   )
 }
 
+// Build a date -> {level, completed, total, focusMinutes, completionPct} map from real schedules + tasks
+function buildHistoryData(schedules, tasks) {
+  const data = {}
+
+  // Group tasks by date
+  const tasksByDate = {}
+  tasks.forEach(t => {
+    if (!tasksByDate[t.date]) tasksByDate[t.date] = []
+    tasksByDate[t.date].push(t)
+  })
+
+  // Seed entries from schedules (every saved schedule counts as activity)
+  schedules.forEach(s => {
+    const focusMinutes = (s.blocks || [])
+      .filter(b => b.tag === 'study' || b.tag === 'work')
+      .reduce((total, b) => {
+        const [sh, sm] = b.time.split(':').map(Number)
+        const [eh, em] = b.endTime.split(':').map(Number)
+        return total + ((eh * 60 + em) - (sh * 60 + sm))
+      }, 0)
+
+    const dayTasks = tasksByDate[s.date] || []
+    const completedTasks = dayTasks.filter(t => t.status === 'completed')
+    const total = dayTasks.length
+    const completionPct = total === 0 ? 0 : Math.round((completedTasks.length / total) * 100)
+
+    // Activity level 1-4 based on completion + presence of schedule
+    let level = 1
+    if (completionPct >= 80) level = 4
+    else if (completionPct >= 50) level = 3
+    else if (completionPct > 0) level = 2
+
+    data[s.date] = {
+      level,
+      completed: completedTasks.map(t => t.title),
+      total: total || (s.blocks?.length || 0),
+      focusMinutes,
+      completionPct,
+    }
+  })
+
+  // Also include dates that have tasks but no saved schedule
+  Object.keys(tasksByDate).forEach(date => {
+    if (data[date]) return
+    const dayTasks = tasksByDate[date]
+    const completedTasks = dayTasks.filter(t => t.status === 'completed')
+    const completionPct = Math.round((completedTasks.length / dayTasks.length) * 100)
+    let level = 1
+    if (completionPct >= 80) level = 4
+    else if (completionPct >= 50) level = 3
+    else if (completionPct > 0) level = 2
+
+    data[date] = {
+      level,
+      completed: completedTasks.map(t => t.title),
+      total: dayTasks.length,
+      focusMinutes: 0,
+      completionPct,
+    }
+  })
+
+  return data
+}
+
 export default function Calendar() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
 
   const today = new Date()
   const getInitialNav = () => {
-  try {
-    const raw = localStorage.getItem('synq-calendar-nav')
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    localStorage.removeItem('synq-calendar-nav')
-    return parsed
-  } catch { return null }
-}
-const nav = getInitialNav()
+    try {
+      const raw = localStorage.getItem('synq-calendar-nav')
+      if (!raw) return null
+      const parsed = JSON.parse(raw)
+      localStorage.removeItem('synq-calendar-nav')
+      return parsed
+    } catch { return null }
+  }
+  const nav = getInitialNav()
 
-const [currentYear, setCurrentYear] = useState(nav?.year || today.getFullYear())
-const [currentMonth, setCurrentMonth] = useState(typeof nav?.month === 'number' ? nav.month : today.getMonth())
-const [selectedDay, setSelectedDay] = useState(nav?.date || null)
-const [view, setView] = useState(nav ? 'month' : 'year')
+  const [currentYear, setCurrentYear] = useState(nav?.year || today.getFullYear())
+  const [currentMonth, setCurrentMonth] = useState(typeof nav?.month === 'number' ? nav.month : today.getMonth())
+  const [selectedDay, setSelectedDay] = useState(nav?.date || null)
+  const [view, setView] = useState(nav ? 'month' : 'year')
+  const [historyData, setHistoryData] = useState({})
+  const [loading, setLoading] = useState(true)
+
   const text = dark ? '#f0f0f0' : '#0a0a0a'
   const subtle = dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'
   const faint = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
@@ -97,6 +135,33 @@ const [view, setView] = useState(nav ? 'month' : 'year')
   const cellBg = dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'
 
   const accent = monthColors[currentMonth]
+
+  useEffect(() => {
+    loadHistory()
+  }, [])
+
+  const loadHistory = async () => {
+    setLoading(true)
+    try {
+      const schedules = await scheduleApi.getAllSchedules()
+      // Fetch tasks for each date that has a schedule, plus a reasonable recent window
+      const dates = new Set(schedules.map(s => s.date))
+      const d = new Date()
+      for (let i = 0; i < 14; i++) {
+        dates.add(d.toISOString().split('T')[0])
+        d.setDate(d.getDate() - 1)
+      }
+      const taskLists = await Promise.all(
+        Array.from(dates).map(date => taskApi.getTasks(date).catch(() => []))
+      )
+      const allTasks = taskLists.flat()
+      setHistoryData(buildHistoryData(schedules, allTasks))
+    } catch (err) {
+      console.error('Failed to load calendar history:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate()
   const getFirstDay = (y, m) => new Date(y, m, 1).getDay()
@@ -112,17 +177,14 @@ const [view, setView] = useState(nav ? 'month' : 'year')
   // ── YEAR VIEW ──────────────────────────────────────────────
   const YearView = () => (
     <div style={{ height: 'calc(100vh - 140px)', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <button onClick={() => setCurrentYear(y => y-1)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: `1px solid ${faint}`, backgroundColor: 'transparent', color: subtle, cursor: 'pointer', fontSize: '14px' }}>←</button>
           <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '32px', fontWeight: 700, color: text, letterSpacing: '-1px' }}>{currentYear}</h1>
           <button onClick={() => setCurrentYear(y => y+1)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: `1px solid ${faint}`, backgroundColor: 'transparent', color: subtle, cursor: 'pointer', fontSize: '14px' }}>→</button>
         </div>
-        
       </div>
 
-      {/* 12 month grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', flex: 1 }}>
         {Array.from({ length: 12 }, (_, mi) => {
           const col = monthColors[mi]
@@ -147,7 +209,6 @@ const [view, setView] = useState(nav ? 'month' : 'year')
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = col }}
               onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = isCurrentMonth ? col : faint }}
             >
-              {/* Month header */}
               <div style={{ backgroundColor: col, padding: '8px 12px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexShrink: 0 }}>
                 <span style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white', letterSpacing: '-0.5px' }}>
                   {SHORT_MONTHS[mi]}
@@ -155,14 +216,12 @@ const [view, setView] = useState(nav ? 'month' : 'year')
                 <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: 'rgba(255,255,255,0.7)' }}>{currentYear}</span>
               </div>
 
-              {/* Day labels */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '4px 6px 0', gap: '1px', flexShrink: 0 }}>
                 {['S','M','T','W','T','F','S'].map((d, i) => (
                   <div key={i} style={{ textAlign: 'center', fontSize: '7px', color: subtle, fontFamily: 'Inter, sans-serif', padding: '2px 0' }}>{d}</div>
                 ))}
               </div>
 
-              {/* Day grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '2px 6px 8px', gap: '2px', flex: 1 }}>
                 {Array.from({ length: firstDay }, (_, i) => <div key={`e-${i}`} />)}
                 {Array.from({ length: daysInMonth }, (_, i) => {
@@ -201,6 +260,14 @@ const [view, setView] = useState(nav ? 'month' : 'year')
     const selectedData = selectedDay ? historyData[selectedDay] : null
     const selectedDate = selectedDay ? new Date(selectedDay + 'T12:00:00') : null
 
+    const focusHoursDisplay = selectedData
+  ? (selectedData.focusMinutes >= 60
+      ? `${Math.floor(selectedData.focusMinutes / 60)}h${selectedData.focusMinutes % 60 > 0 ? ` ${selectedData.focusMinutes % 60}m` : ''}`
+      : `${selectedData.focusMinutes}m`)
+  : '0m'
+
+const focusPct = selectedData ? Math.min(100, Math.round((selectedData.focusMinutes / 240) * 100)) : 0
+
     const prevMonth = () => {
       if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y-1) }
       else setCurrentMonth(m => m-1)
@@ -214,7 +281,6 @@ const [view, setView] = useState(nav ? 'month' : 'year')
 
     return (
       <div style={{ height: 'calc(100vh - 140px)', display: 'flex', flexDirection: 'column' }}>
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <button
@@ -234,9 +300,7 @@ const [view, setView] = useState(nav ? 'month' : 'year')
           </div>
         </div>
 
-        {/* Body */}
         <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0 }}>
-          {/* Calendar grid */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', marginBottom: '6px', flexShrink: 0 }}>
               {DAYS.map(d => (
@@ -285,7 +349,6 @@ const [view, setView] = useState(nav ? 'month' : 'year')
             </div>
           </div>
 
-          {/* Right panel */}
           <div style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {selectedDay && selectedDate ? (
               <>
@@ -315,16 +378,16 @@ const [view, setView] = useState(nav ? 'month' : 'year')
                       <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '14px' }}>Activity</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <StackedRings
-                          completionPct={selectedData.completionPct}
-                          tasksPct={Math.round((selectedData.completed.length / selectedData.total) * 100)}
-                          studyPct={selectedData.studyHours * 20}
-                        />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {[
-                            { label: 'Completion', pct: selectedData.completionPct, color: '#ff4d00' },
-                            { label: 'Tasks', pct: Math.round((selectedData.completed.length / selectedData.total) * 100), color: '#5aad7a' },
-                            { label: 'Study', pct: selectedData.studyHours * 20, color: '#4a90d9' },
-                          ].map(r => (
+  completionPct={selectedData.completionPct}
+  tasksPct={Math.round((selectedData.completed.length / Math.max(selectedData.total, 1)) * 100)}
+  studyPct={focusPct}
+/>
+<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+  {[
+    { label: 'Completion', pct: selectedData.completionPct, color: '#ff4d00' },
+    { label: 'Tasks', pct: Math.round((selectedData.completed.length / Math.max(selectedData.total, 1)) * 100), color: '#5aad7a' },
+    { label: 'Focus', pct: focusPct, color: '#4a90d9' },
+  ].map(r => (
                             <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: r.color }} />
                               <span style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '14px', fontWeight: 600, color: r.color }}>{r.pct}%</span>
@@ -336,7 +399,7 @@ const [view, setView] = useState(nav ? 'month' : 'year')
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      {[{ label: 'Tasks done', value: `${selectedData.completed.length}/${selectedData.total}` }, { label: 'Study hours', value: `${selectedData.studyHours}h` }].map(s => (
+                      {[{ label: 'Tasks done', value: `${selectedData.completed.length}/${selectedData.total}` }, { label: 'Focus time', value: focusHoursDisplay }].map(s => (
                         <div key={s.label} style={{ padding: '14px', borderRadius: '12px', backgroundColor: cardBg, border: `1px solid ${faint}` }}>
                           <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>{s.label}</div>
                           <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '22px', fontWeight: 700, color: text }}>{s.value}</div>
@@ -346,14 +409,18 @@ const [view, setView] = useState(nav ? 'month' : 'year')
 
                     <div style={{ backgroundColor: cardBg, border: `1px solid ${faint}`, borderRadius: '16px', padding: '20px', flex: 1, overflow: 'auto' }}>
                       <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Completed tasks</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {selectedData.completed.map((task, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${faint}` }}>
-                            <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: accent, flexShrink: 0 }} />
-                            <span style={{ fontSize: '13px', fontFamily: 'Inter, sans-serif', color: text }}>{task}</span>
-                          </div>
-                        ))}
-                      </div>
+                      {selectedData.completed.length === 0 ? (
+                        <div style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif', fontStyle: 'italic' }}>No tasks completed</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {selectedData.completed.map((task, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${faint}` }}>
+                              <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: accent, flexShrink: 0 }} />
+                              <span style={{ fontSize: '13px', fontFamily: 'Inter, sans-serif', color: text }}>{task}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -385,7 +452,11 @@ const [view, setView] = useState(nav ? 'month' : 'year')
         <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '40px', fontWeight: 700, color: text, letterSpacing: '-1px', lineHeight: 1 }}> <span style={{ color: '#ff4d00' }}>Calendar</span> </h1>
       </div>
       <div style={{ height: '1px', backgroundColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', marginBottom: '20px' }} />
-      {view === 'year' ? <YearView /> : <MonthView />}
+      {loading ? (
+  <LoadingSplash label="Loading your history..." />
+) : (
+        view === 'year' ? <YearView /> : <MonthView />
+      )}
     </AppLayout>
   )
 }
