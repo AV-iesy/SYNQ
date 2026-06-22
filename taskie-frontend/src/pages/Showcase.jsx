@@ -161,17 +161,25 @@ function MultiPhoneHero() {
           </Iphone>
 
           {/* Label */}
-          <div style={{
-            position: 'absolute', bottom: '-36px', left: '50%', transform: 'translateX(-50%)',
-            display: 'flex', alignItems: 'center', gap: '6px',
-            padding: '5px 12px', borderRadius: '100px', whiteSpace: 'nowrap',
-            backgroundColor: 'rgba(255,77,0,0.1)', border: '1px solid rgba(255,77,0,0.25)',
-          }}>
-            <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ff4d00' }} />
-            <span style={{ fontSize: '11px', fontFamily: 'Inter, sans-serif', fontWeight: 500, color: '#ff4d00' }}>
-              {s.name}
-            </span>
-          </div>
+          <div
+  style={{
+    position: 'absolute',
+    bottom: '-36px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+  }}
+>
+  <span
+    style={{
+      fontSize: '16px',
+      fontFamily: 'Inter, sans-serif',
+      fontWeight: 500,
+      color: '#ff4d00',
+    }}
+  >
+    {s.name}
+  </span>
+</div>
         </div>
       ))}
     </div>

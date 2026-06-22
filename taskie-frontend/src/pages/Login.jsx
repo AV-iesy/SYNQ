@@ -59,20 +59,18 @@ export default function Login() {
 
       {/* Logo */}
       <Link
-        to="/"
-        className="flex items-center gap-2 mb-10"
-        style={{
-          fontFamily: 'Bricolage Grotesque, sans-serif',
-          fontWeight: 600,
-          fontSize: '20px',
-          color: dark ? '#f0f0f0' : '#0a0a0a',
-          textDecoration: 'none',
-          letterSpacing: '-0.5px',
-        }}
-      >
-        
-        SYNQ
-      </Link>
+  to="/"
+  className="flex items-center gap-2 mb-10"
+  style={{
+    fontFamily: 'Bricolage Grotesque, sans-serif',
+    fontWeight: 600,
+    fontSize: '30px',
+    textDecoration: 'none',
+    letterSpacing: '-0.5px',
+  }}
+>
+  <span style={{ color: '#E53935' }}>SYNQ</span>
+</Link>
 
       {/* Card */}
       {/* Card */}

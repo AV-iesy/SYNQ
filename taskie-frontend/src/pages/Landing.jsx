@@ -1,58 +1,65 @@
 import { Link } from 'react-router-dom'
 import Highlighter from '../components/common/Highlighter'
 import InfinityIcon from '../components/common/InfinityIcon'
+import ShaderAnimation from '../components/common/ShaderAnimation'
 
 export default function Landing() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-6"
-      style={{ backgroundColor: '#080808' }}
+      style={{ backgroundColor: '#000', position: 'relative', overflow: 'hidden' }}
     >
+      <ShaderAnimation />
+      <ShaderAnimation />
       {/* Logo */}
-      <div style={{ marginBottom: '32px' }}>
-        <InfinityIcon size={58} color="#fff000" strokeWidth={2.5} />
-      </div>
+      {/* Logo */}
+<div style={{ marginBottom: '32px', position: 'relative', zIndex: 1 }}>
+  <InfinityIcon size={48} color="#ff4d00" strokeWidth={2.5} />
+</div>
 
       {/* Headline */}
       <h1
-        className="text-center"
-        style={{
-          fontFamily: 'Bricolage Grotesque, sans-serif',
-          fontSize: '52px',
-          fontWeight: 700,
-          color: '#f0f0f0',
-          letterSpacing: '-1.5px',
-          lineHeight: 1.15,
-          maxWidth: '760px',
-          marginBottom: '20px',
-        }}
-      >
+  className="text-center"
+  style={{
+    fontFamily: 'Bricolage Grotesque, sans-serif',
+    fontSize: '52px',
+    fontWeight: 700,
+    color: '#f0f0f0',
+    letterSpacing: '-1.5px',
+    lineHeight: 1.15,
+    maxWidth: '760px',
+    marginBottom: '20px',
+    position: 'relative', zIndex: 1,
+  }}
+>
         <Highlighter action="underline" color="#ff4d00" delay={300}>
           SYNQ
         </Highlighter>
         ronize your life with{' '}
-        <Highlighter action="highlight" color="#ff4d00" delay={800}>
+        <Highlighter action="highlight" color="#ff0000" delay={800}>
           SYNQ
         </Highlighter>
       </h1>
 
       {/* Subtext */}
       <p
-        style={{
-          fontFamily: 'Inter, sans-serif',
-          fontSize: '16px',
-          color: 'rgba(255,255,255,0.45)',
-          textAlign: 'center',
-          maxWidth: '460px',
-          marginBottom: '40px',
-          lineHeight: 1.6,
-        }}
-      >
-        AI-powered planning, tasks, journaling, and insights — all in one place, built to keep your day in Synq.
+  style={{
+    fontFamily: 'Inter, sans-serif',
+    fontSize: '16px',
+    color: 'rgba(255,255,255,0.45)',
+    textAlign: 'center',
+    maxWidth: '460px',
+    marginBottom: '40px',
+    lineHeight: 1.6,
+    position: 'relative', zIndex: 1,
+  }}
+>
+        SYNQ keeps your life in sync. 
       </p>
 
       {/* CTA */}
-      <div style={{ display: 'flex', gap: '12px' }}>
+      {/* CTA */}
+<div style={{ display: 'flex', gap: '12px', position: 'relative', zIndex: 1 }}>
         <Link
   to="/showcase"
   style={{

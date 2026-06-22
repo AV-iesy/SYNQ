@@ -3,6 +3,7 @@ import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
 import * as scheduleApi from '../api/schedule'
 import * as taskApi from '../api/tasks'
+import * as journalApi from '../api/journal'
 import LoadingSplash from '../components/common/LoadingSplash'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -14,6 +15,9 @@ const monthColors = [
   '#c9944a','#ff4d00','#666666','#8b4fb5',
   '#1a3a8f','#7a3010','#4a90d9','#8b1a1a',
 ]
+
+const MOOD_COLORS = { great: '#ff4d00', good: '#5aad7a', okay: '#4a90d9', low: '#8b6bc7', rough: '#888' }
+const MOOD_LABELS = { great: 'Great', good: 'Good', okay: 'Okay', low: 'Low', rough: 'Rough' }
 
 function StackedRings({ completionPct, tasksPct, studyPct }) {
   const size = 110, stroke = 10, gap = 8
@@ -45,14 +49,12 @@ function StackedRings({ completionPct, tasksPct, studyPct }) {
 function buildHistoryData(schedules, tasks) {
   const data = {}
 
-  // Group tasks by date
   const tasksByDate = {}
   tasks.forEach(t => {
     if (!tasksByDate[t.date]) tasksByDate[t.date] = []
     tasksByDate[t.date].push(t)
   })
 
-  // Seed entries from schedules (every saved schedule counts as activity)
   schedules.forEach(s => {
     const focusMinutes = (s.blocks || [])
       .filter(b => b.tag === 'study' || b.tag === 'work')
@@ -67,7 +69,6 @@ function buildHistoryData(schedules, tasks) {
     const total = dayTasks.length
     const completionPct = total === 0 ? 0 : Math.round((completedTasks.length / total) * 100)
 
-    // Activity level 1-4 based on completion + presence of schedule
     let level = 1
     if (completionPct >= 80) level = 4
     else if (completionPct >= 50) level = 3
@@ -82,7 +83,6 @@ function buildHistoryData(schedules, tasks) {
     }
   })
 
-  // Also include dates that have tasks but no saved schedule
   Object.keys(tasksByDate).forEach(date => {
     if (data[date]) return
     const dayTasks = tasksByDate[date]
@@ -126,6 +126,7 @@ export default function Calendar() {
   const [selectedDay, setSelectedDay] = useState(nav?.date || null)
   const [view, setView] = useState(nav ? 'month' : 'year')
   const [historyData, setHistoryData] = useState({})
+  const [journalEntries, setJournalEntries] = useState({})
   const [loading, setLoading] = useState(true)
 
   const text = dark ? '#f0f0f0' : '#0a0a0a'
@@ -143,8 +144,15 @@ export default function Calendar() {
   const loadHistory = async () => {
     setLoading(true)
     try {
-      const schedules = await scheduleApi.getAllSchedules()
-      // Fetch tasks for each date that has a schedule, plus a reasonable recent window
+      const [schedules, journalList] = await Promise.all([
+        scheduleApi.getAllSchedules(),
+        journalApi.getAllEntries(),
+      ])
+
+      const jByDate = {}
+      ;(journalList || []).forEach(e => { jByDate[e.date] = e })
+      setJournalEntries(jByDate)
+
       const dates = new Set(schedules.map(s => s.date))
       const d = new Date()
       for (let i = 0; i < 14; i++) {
@@ -259,14 +267,15 @@ export default function Calendar() {
     const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7
     const selectedData = selectedDay ? historyData[selectedDay] : null
     const selectedDate = selectedDay ? new Date(selectedDay + 'T12:00:00') : null
+    const selectedJournal = selectedDay ? journalEntries[selectedDay] : null
 
     const focusHoursDisplay = selectedData
-  ? (selectedData.focusMinutes >= 60
-      ? `${Math.floor(selectedData.focusMinutes / 60)}h${selectedData.focusMinutes % 60 > 0 ? ` ${selectedData.focusMinutes % 60}m` : ''}`
-      : `${selectedData.focusMinutes}m`)
-  : '0m'
+      ? (selectedData.focusMinutes >= 60
+          ? `${Math.floor(selectedData.focusMinutes / 60)}h${selectedData.focusMinutes % 60 > 0 ? ` ${selectedData.focusMinutes % 60}m` : ''}`
+          : `${selectedData.focusMinutes}m`)
+      : '0m'
 
-const focusPct = selectedData ? Math.min(100, Math.round((selectedData.focusMinutes / 240) * 100)) : 0
+    const focusPct = selectedData ? Math.min(100, Math.round((selectedData.focusMinutes / 240) * 100)) : 0
 
     const prevMonth = () => {
       if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y-1) }
@@ -349,7 +358,7 @@ const focusPct = selectedData ? Math.min(100, Math.round((selectedData.focusMinu
             </div>
           </div>
 
-          <div style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto' }}>
             {selectedDay && selectedDate ? (
               <>
                 <div style={{ backgroundColor: cardBg, border: `1px solid ${faint}`, borderRadius: '16px', padding: '20px' }}>
@@ -378,16 +387,16 @@ const focusPct = selectedData ? Math.min(100, Math.round((selectedData.focusMinu
                       <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '14px' }}>Activity</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <StackedRings
-  completionPct={selectedData.completionPct}
-  tasksPct={Math.round((selectedData.completed.length / Math.max(selectedData.total, 1)) * 100)}
-  studyPct={focusPct}
-/>
-<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-  {[
-    { label: 'Completion', pct: selectedData.completionPct, color: '#ff4d00' },
-    { label: 'Tasks', pct: Math.round((selectedData.completed.length / Math.max(selectedData.total, 1)) * 100), color: '#5aad7a' },
-    { label: 'Focus', pct: focusPct, color: '#4a90d9' },
-  ].map(r => (
+                          completionPct={selectedData.completionPct}
+                          tasksPct={Math.round((selectedData.completed.length / Math.max(selectedData.total, 1)) * 100)}
+                          studyPct={focusPct}
+                        />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {[
+                            { label: 'Completion', pct: selectedData.completionPct, color: '#ff4d00' },
+                            { label: 'Tasks', pct: Math.round((selectedData.completed.length / Math.max(selectedData.total, 1)) * 100), color: '#5aad7a' },
+                            { label: 'Focus', pct: focusPct, color: '#4a90d9' },
+                          ].map(r => (
                             <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: r.color }} />
                               <span style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '14px', fontWeight: 600, color: r.color }}>{r.pct}%</span>
@@ -398,6 +407,36 @@ const focusPct = selectedData ? Math.min(100, Math.round((selectedData.focusMinu
                       </div>
                     </div>
 
+                    {selectedJournal && (
+                      <div style={{ backgroundColor: cardBg, border: `1px solid ${faint}`, borderRadius: '16px', padding: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '1px' }}>Journal</div>
+                          {selectedJournal.mood && (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '5px',
+                              padding: '3px 10px', borderRadius: '100px',
+                              backgroundColor: `${MOOD_COLORS[selectedJournal.mood]}1a`,
+                              border: `1px solid ${MOOD_COLORS[selectedJournal.mood]}44`,
+                            }}>
+                              <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: MOOD_COLORS[selectedJournal.mood] }} />
+                              <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', color: MOOD_COLORS[selectedJournal.mood] }}>
+                                {MOOD_LABELS[selectedJournal.mood]}
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                        {selectedJournal.text ? (
+                          <div style={{ fontSize: '12px', color: text, fontFamily: 'Inter, sans-serif', lineHeight: 1.6 }}>
+                            {selectedJournal.text}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif', fontStyle: 'italic' }}>
+                            Mood logged, no written entry
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                       {[{ label: 'Tasks done', value: `${selectedData.completed.length}/${selectedData.total}` }, { label: 'Focus time', value: focusHoursDisplay }].map(s => (
                         <div key={s.label} style={{ padding: '14px', borderRadius: '12px', backgroundColor: cardBg, border: `1px solid ${faint}` }}>
@@ -407,7 +446,7 @@ const focusPct = selectedData ? Math.min(100, Math.round((selectedData.focusMinu
                       ))}
                     </div>
 
-                    <div style={{ backgroundColor: cardBg, border: `1px solid ${faint}`, borderRadius: '16px', padding: '20px', flex: 1, overflow: 'auto' }}>
+                    <div style={{ backgroundColor: cardBg, border: `1px solid ${faint}`, borderRadius: '16px', padding: '20px' }}>
                       <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Completed tasks</div>
                       {selectedData.completed.length === 0 ? (
                         <div style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif', fontStyle: 'italic' }}>No tasks completed</div>
@@ -453,8 +492,8 @@ const focusPct = selectedData ? Math.min(100, Math.round((selectedData.focusMinu
       </div>
       <div style={{ height: '1px', backgroundColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', marginBottom: '20px' }} />
       {loading ? (
-  <LoadingSplash label="Loading your history..." />
-) : (
+        <LoadingSplash label="Loading your history..." />
+      ) : (
         view === 'year' ? <YearView /> : <MonthView />
       )}
     </AppLayout>

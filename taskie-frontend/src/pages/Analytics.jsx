@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import AppLayout from '../components/common/AppLayout'
 import LoadingSplash from '../components/common/LoadingSplash'
@@ -11,9 +11,9 @@ import * as scheduleApi from '../api/schedule'
 import * as journalApi from '../api/journal'
 
 const RANGES = [
-  { key: 7, label: '7 days' },
-  { key: 30, label: '30 days' },
-  { key: 90, label: '90 days' },
+  { key: 7, label: '7d' },
+  { key: 30, label: '30d' },
+  { key: 90, label: '90d' },
 ]
 
 const TAG_COLORS = {
@@ -55,8 +55,8 @@ export default function Analytics() {
   const card = (extra = {}) => ({
     backgroundColor: cardBg,
     border: `1px solid ${faint}`,
-    borderRadius: '18px',
-    padding: '24px',
+    borderRadius: '16px',
+    padding: '18px',
     ...extra,
   })
 
@@ -102,7 +102,6 @@ export default function Analytics() {
 
   const dates = getDateRange(range)
 
-  // ── Summary stats ──────────────────────────────────────────
   let totalTasks = 0, totalCompleted = 0, totalFocusMinutes = 0
 
   const scheduleByDate = {}
@@ -134,6 +133,7 @@ export default function Analytics() {
     return {
       date,
       label: dObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      day: dObj.toLocaleDateString('en-US', { weekday: 'short' }),
       completionPct: pct,
       focusHours: Math.round((focusMinutes / 60) * 10) / 10,
       moodScore: mood ? MOOD_SCORES[mood] : null,
@@ -146,7 +146,6 @@ export default function Analytics() {
     ? `${Math.floor(totalFocusMinutes / 60)}h ${totalFocusMinutes % 60}m`
     : `${totalFocusMinutes}m`
 
-  // ── Category breakdown ─────────────────────────────────────
   const tagDurations = {}
   schedules.forEach(s => {
     ;(s.blocks || []).forEach(b => {
@@ -162,21 +161,32 @@ export default function Analytics() {
     .map(([tag, minutes]) => ({ name: tag, value: minutes, color: TAG_COLORS[tag] || '#888' }))
     .sort((a, b) => b.value - a.value)
 
-  // ── Mood correlation ───────────────────────────────────────
-  const moodData = trendData.filter(d => d.moodScore !== null)
   const moodCounts = {}
   Object.values(journalEntries).forEach(e => {
     if (e.mood) moodCounts[e.mood] = (moodCounts[e.mood] || 0) + 1
   })
-  const moodDistribution = Object.entries(moodCounts).map(([mood, count]) => ({
-    name: mood, value: count, color: MOOD_COLORS[mood],
-  }))
+  const moodDistribution = Object.entries(moodCounts)
+    .map(([mood, count]) => ({ name: mood, value: count, color: MOOD_COLORS[mood] }))
+    .sort((a, b) => MOOD_SCORES[b.name] - MOOD_SCORES[a.name])
+  const moodTotal = moodDistribution.reduce((s, x) => s + x.value, 0)
 
-  // current streak (consecutive days with at least 1 completed task, from today backward)
   let streak = 0
   for (let i = trendData.length - 1; i >= 0; i--) {
     if (trendData[i].completionPct > 0) streak++
     else break
+  }
+
+  // heatmap intensity levels (0-4) per day based on completion %
+  const heatLevel = (pct) => {
+    if (pct === 0) return 0
+    if (pct < 30) return 1
+    if (pct < 60) return 2
+    if (pct < 90) return 3
+    return 4
+  }
+  const heatColor = (level) => {
+    const colors = [faint, 'rgba(255,77,0,0.25)', 'rgba(255,77,0,0.45)', 'rgba(255,77,0,0.7)', '#ff4d00']
+    return colors[level]
   }
 
   const tooltipStyle = {
@@ -185,176 +195,179 @@ export default function Analytics() {
     color: text,
   }
 
+  const sectionLabel = (txt) => (
+    <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '10px' }}>
+      {txt}
+    </div>
+  )
+
   return (
     <AppLayout>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
-        <div>
-          <p style={{ fontSize: '13px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '6px' }}>Insights</p>
-          <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '36px', fontWeight: 700, color: text, letterSpacing: '-1px' }}>
-            <span style={{ color: '#ff4d00' }}>Analytics</span>
-          </h1>
+      <div style={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexShrink: 0 }}>
+          <div>
+            <p style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '2px' }}>Insights</p>
+            <h1 style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '38px', fontWeight: 700, color: text, letterSpacing: '-0.8px' }}>
+              <span style={{ color: '#ff4d00' }}>Analytics</span>
+            </h1>
+          </div>
+          <div style={{ display: 'flex', gap: '4px', backgroundColor: cardBg, border: `1px solid ${faint}`, borderRadius: '10px', padding: '3px' }}>
+            {RANGES.map(r => (
+              <button
+                key={r.key}
+                onClick={() => setRange(r.key)}
+                style={{
+                  padding: '6px 12px', borderRadius: '8px', fontSize: '12px',
+                  fontFamily: 'Inter, sans-serif', fontWeight: 500, cursor: 'pointer',
+                  border: 'none',
+                  backgroundColor: range === r.key ? '#ff4d00' : 'transparent',
+                  color: range === r.key ? 'white' : subtle,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '6px', backgroundColor: cardBg, border: `1px solid ${faint}`, borderRadius: '10px', padding: '4px' }}>
-          {RANGES.map(r => (
-            <button
-              key={r.key}
-              onClick={() => setRange(r.key)}
-              style={{
-                padding: '7px 14px', borderRadius: '8px', fontSize: '12px',
-                fontFamily: 'Inter, sans-serif', fontWeight: 500, cursor: 'pointer',
-                border: 'none',
-                backgroundColor: range === r.key ? '#ff4d00' : 'transparent',
-                color: range === r.key ? 'white' : subtle,
-                transition: 'all 0.15s',
-              }}
-            >
-              {r.label}
-            </button>
+
+        {/* Stat row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '12px', flexShrink: 0 }}>
+          {[
+            { label: 'Avg Completion', value: `${avgCompletion}%`, color: '#ff4d00' },
+            { label: 'Tasks Completed', value: `${totalCompleted}/${totalTasks}`, color: '#5aad7a' },
+            { label: 'Total Focus Time', value: totalFocusHoursText, color: '#4a90d9' },
+            { label: 'Current Streak', value: `${streak} days`, color: '#8b6bc7' },
+          ].map(s => (
+            <div key={s.label} style={card()}>
+              <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                {s.label}
+              </div>
+              <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '22px', fontWeight: 700, color: s.color, letterSpacing: '-0.5px' }}>
+                {s.value}
+              </div>
+            </div>
           ))}
         </div>
-      </div>
 
-      {/* Summary stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '16px' }}>
-        {[
-          { label: 'Avg Completion', value: `${avgCompletion}%`, color: '#ff4d00' },
-          { label: 'Tasks Completed', value: `${totalCompleted}/${totalTasks}`, color: '#5aad7a' },
-          { label: 'Total Focus Time', value: totalFocusHoursText, color: '#4a90d9' },
-          { label: 'Current Streak', value: `${streak} days`, color: '#8b6bc7' },
-        ].map(s => (
-          <div key={s.label} style={card()}>
-            <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-              {s.label}
+        {/* Bento grid — fills remaining space */}
+        <div style={{
+          flex: 1, minHeight: 0,
+          display: 'grid',
+          gridTemplateColumns: '1.3fr 1fr',
+          gridTemplateRows: '1fr 1fr',
+          gap: '12px',
+        }}>
+
+          {/* Completion heatmap (top-left, like "Orders by time") */}
+          <div style={{ ...card(), display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            {sectionLabel('Completion Heatmap')}
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: 0, overflow: 'hidden' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${trendData.length}, 1fr)`,
+                gap: '5px',
+                width: '100%',
+              }}>
+                {trendData.map((d, i) => (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                    <div
+                      title={`${d.label}: ${d.completionPct}%`}
+                      style={{
+                        width: '100%', aspectRatio: '1', borderRadius: '6px',
+                        backgroundColor: heatColor(heatLevel(d.completionPct)),
+                        transition: 'opacity 0.15s',
+                      }}
+                    />
+                    {range <= 30 && (
+                      <span style={{ fontSize: '8px', color: subtle, fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap' }}>
+                        {range <= 7 ? d.day : ''}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-            <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '28px', fontWeight: 700, color: s.color, letterSpacing: '-0.5px' }}>
-              {s.value}
+          </div>
+
+          {/* Category breakdown (top-right, like "Sales by Country") */}
+          <div style={{ ...card(), display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              {sectionLabel('Time by Category')}
+            </div>
+            {categoryData.length === 0 ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: subtle, fontSize: '12px', fontFamily: 'Inter, sans-serif' }}>
+                No schedule data yet
+              </div>
+            ) : (
+              <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', alignContent: 'start' }}>
+                {categoryData.slice(0, 6).map((c, i) => (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '8px 10px', borderRadius: '10px',
+                    backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+                  }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: c.color, flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: '11px', color: text, fontFamily: 'Inter, sans-serif', textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {c.name}
+                      </div>
+                      <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif' }}>
+                        {Math.round(c.value / 60 * 10) / 10}h
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Completion + Focus trend line (bottom-left, like "Monthly Sales performance") */}
+          <div style={{ ...card(), display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            {sectionLabel('Completion & Focus Trend')}
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+                  <XAxis dataKey="label" stroke={subtle} tick={{ fontSize: 10, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="left" stroke="#ff4d00" tick={{ fontSize: 10, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} domain={[0, 100]} width={28} />
+                  <YAxis yAxisId="right" orientation="right" stroke="#4a90d9" tick={{ fontSize: 10, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} width={28} />
+                  <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: text }} />
+                  <Line yAxisId="left" type="monotone" dataKey="completionPct" name="Completion %" stroke="#ff4d00" strokeWidth={2} dot={{ r: 2 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="focusHours" name="Focus hrs" stroke="#4a90d9" strokeWidth={2} dot={{ r: 2 }} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Completion trend */}
-      <div style={{ ...card(), marginBottom: '16px' }}>
-        <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '16px', fontWeight: 600, color: text, marginBottom: '16px' }}>
-          Completion Trend
-        </div>
-        <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={trendData}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-            <XAxis dataKey="label" stroke={subtle} tick={{ fontSize: 11, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} />
-            <YAxis stroke={subtle} tick={{ fontSize: 11, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: text }} />
-            <Line type="monotone" dataKey="completionPct" name="Completion %" stroke="#ff4d00" strokeWidth={2.5} dot={{ r: 3, fill: '#ff4d00' }} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-
-        {/* Focus hours bar */}
-        <div style={card()}>
-          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '16px', fontWeight: 600, color: text, marginBottom: '16px' }}>
-            Focus Hours
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-              <XAxis dataKey="label" stroke={subtle} tick={{ fontSize: 11, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} />
-              <YAxis stroke={subtle} tick={{ fontSize: 11, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: text }} cursor={false} />
-<Bar dataKey="focusHours" name="Focus hrs" fill="#ff4d00" radius={[4, 4, 0, 0]} activeBar={{ fill: '#ff4d00' }} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Category breakdown */}
-        <div style={card()}>
-          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '16px', fontWeight: 600, color: text, marginBottom: '16px' }}>
-            Time by Category
-          </div>
-          {categoryData.length === 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: subtle, fontSize: '13px', fontFamily: 'Inter, sans-serif' }}>
-              No schedule data yet
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={categoryData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
-                  {categoryData.map((entry, i) => <Cell key={i} fill={entry.color} stroke="none" />)}
-                </Pie>
-                <Tooltip
-                  contentStyle={tooltipStyle}
-                  formatter={(value, name) => [`${Math.round(value / 60 * 10) / 10}h`, name]}
-                />
-                <Legend
-                  formatter={(value) => <span style={{ color: subtle, fontSize: '11px', fontFamily: 'Inter, sans-serif' }}>{value}</span>}
-                  iconSize={8}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </div>
-
-      {/* Mood correlation */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
-        <div style={card()}>
-          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '16px', fontWeight: 600, color: text, marginBottom: '4px' }}>
-            Mood vs Completion
-          </div>
-          <div style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '16px' }}>
-            See how your mood tracks with how much you got done
-          </div>
-          {moodData.length === 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: subtle, fontSize: '13px', fontFamily: 'Inter, sans-serif' }}>
-              No journal entries with mood yet
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                <XAxis dataKey="label" stroke={subtle} tick={{ fontSize: 11, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} />
-                <YAxis yAxisId="left" stroke="#ff4d00" tick={{ fontSize: 11, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-                <YAxis yAxisId="right" orientation="right" stroke="#8b6bc7" tick={{ fontSize: 11, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} domain={[0, 5]} />
-                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: text }} />
-                <Line yAxisId="left" type="monotone" dataKey="completionPct" name="Completion %" stroke="#ff4d00" strokeWidth={2} dot={{ r: 2 }} />
-                <Line yAxisId="right" type="monotone" dataKey="moodScore" name="Mood (1-5)" stroke="#8b6bc7" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Mood distribution */}
-        <div style={card()}>
-          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '16px', fontWeight: 600, color: text, marginBottom: '16px' }}>
-            Mood Distribution
-          </div>
-          {moodDistribution.length === 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '180px', color: subtle, fontSize: '13px', fontFamily: 'Inter, sans-serif' }}>
-              No mood data yet
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {moodDistribution
-                .sort((a, b) => MOOD_SCORES[b.name] - MOOD_SCORES[a.name])
-                .map(m => {
-                  const total = moodDistribution.reduce((s, x) => s + x.value, 0)
-                  const pct = Math.round((m.value / total) * 100)
+          {/* Mood distribution (bottom-right, like "Top Product Sales" table) */}
+          <div style={{ ...card(), display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            {sectionLabel('Mood Breakdown')}
+            {moodDistribution.length === 0 ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: subtle, fontSize: '12px', fontFamily: 'Inter, sans-serif' }}>
+                No mood data yet
+              </div>
+            ) : (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center', overflowY: 'auto' }}>
+                {moodDistribution.map(m => {
+                  const pct = Math.round((m.value / moodTotal) * 100)
                   return (
                     <div key={m.name}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '12px', color: text, fontFamily: 'Inter, sans-serif', textTransform: 'capitalize' }}>{m.name}</span>
-                        <span style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{m.value} days</span>
+                        <span style={{ fontSize: '11px', color: text, fontFamily: 'Inter, sans-serif', textTransform: 'capitalize' }}>{m.name}</span>
+                        <span style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{m.value}d · {pct}%</span>
                       </div>
-                      <div style={{ height: '6px', backgroundColor: faint, borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, backgroundColor: m.color, borderRadius: '3px' }} />
+                      <div style={{ height: '5px', backgroundColor: faint, borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, backgroundColor: m.color, borderRadius: '3px', transition: 'width 0.4s ease' }} />
                       </div>
                     </div>
                   )
                 })}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </AppLayout>

@@ -3,6 +3,7 @@ import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
 import InfinityIcon from '../components/common/InfinityIcon'
 import LoadingSplash from '../components/common/LoadingSplash'
+import ProgressiveBlur from '../components/common/ProgressiveBlur'
 import * as taskApi from '../api/tasks'
 import * as scheduleApi from '../api/schedule'
 
@@ -408,7 +409,7 @@ const handleAdjustNow = (newTitle) => {
 </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'stretch' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'stretch', height: '520px' }}>
 
         <div style={{ ...card(), display: 'flex', flexDirection: 'column' }}>
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -430,8 +431,9 @@ const handleAdjustNow = (newTitle) => {
             </div>
           </div>
           {schedule && schedule.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
-              {schedule.map((block, i) => {
+  <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', height: '100%', overflowY: 'auto', paddingRight: '4px' }}>
+      {schedule.map((block, i) => {
                 const ts = tagStyle[block.tag] || tagStyle.rest
                 return (
                   <div key={i} style={{
@@ -453,10 +455,12 @@ const handleAdjustNow = (newTitle) => {
                       fontFamily: 'Inter, sans-serif',
                     }}>{block.tag}</span>
                   </div>
-                )
-              })}
-            </div>
-          ) : (
+      )
+    })}
+    </div>
+    <ProgressiveBlur position="bottom" height="20%" />
+  </div>
+) : (
             <div style={{ textAlign: 'center', padding: '32px 0', color: subtle, fontSize: '13px', fontFamily: 'Inter, sans-serif' }}>
               No schedule yet — <a href="/planner" style={{ color: '#ff4d00', textDecoration: 'none' }}>create one in Planner</a>
             </div>
@@ -485,8 +489,9 @@ const handleAdjustNow = (newTitle) => {
             <div style={{ height: '100%', width: `${completionPct}%`, backgroundColor: '#ff4d00', borderRadius: '2px', transition: 'width 0.4s ease' }} />
           </div>
 
-          <div className="schedule-scroll" style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px', flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
-  {tasks.map(task => {
+          <div style={{ position: 'relative', flex: 1, minHeight: 0, marginBottom: '16px' }}>
+  <div className="schedule-scroll" style={{ display: 'flex', flexDirection: 'column', gap: '6px', height: '100%', overflowY: 'auto', paddingRight: '4px' }}>
+    {tasks.map(task => {
               const ts = tagStyle[task.tag] || tagStyle.rest
               return (
                 <div key={task._id} style={{
@@ -536,16 +541,18 @@ const handleAdjustNow = (newTitle) => {
   fontFamily: 'Inter, sans-serif',
 }}>{task.tag}</span>
                 </div>
-              )
-            })}
-            {tasks.length === 0 && (
+      )
+    })}
+    {tasks.length === 0 && (
               <div style={{ textAlign: 'center', padding: '20px 0', color: subtle, fontSize: '13px', fontFamily: 'Inter, sans-serif' }}>
                 No tasks yet — add one below
               </div>
             )}
-          </div>
+    </div>
+    <ProgressiveBlur position="bottom" height="20%" />
+  </div>
 
-          <form onSubmit={addTask} style={{ display: 'flex', gap: '8px' }}>
+  <form onSubmit={addTask} style={{ display: 'flex', gap: '8px' }}>
             <input value={newTask} onChange={e => setNewTask(e.target.value)}
               placeholder="Add a task..."
               style={{
