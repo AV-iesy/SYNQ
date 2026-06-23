@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext'
 import * as scheduleApi from '../api/schedule'
 import * as taskApi from '../api/tasks'
 import * as journalApi from '../api/journal'
-import LoadingSplash from '../components/common/LoadingSplash'
+import { usePageTransition } from '../context/PageTransitionContext'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const SHORT_MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
@@ -108,6 +108,12 @@ function buildHistoryData(schedules, tasks) {
 export default function Calendar() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
+  //const { reportReady } = usePageTransition()
+  const pageTransition = usePageTransition()
+  //console.log('CALENDAR CONTEXT:', JSON.stringify(pageTransition))
+//console.log('pageTransition:', pageTransition)
+
+const reportReady = pageTransition?.reportReady || (() => {})
 
   const today = new Date()
   const getInitialNav = () => {
@@ -165,10 +171,11 @@ export default function Calendar() {
       const allTasks = taskLists.flat()
       setHistoryData(buildHistoryData(schedules, allTasks))
     } catch (err) {
-      console.error('Failed to load calendar history:', err)
-    } finally {
-      setLoading(false)
-    }
+  console.error('Failed to load Calendar history:', err)
+} finally {
+  setLoading(false)
+  reportReady()
+}
   }
 
   const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate()
@@ -492,10 +499,10 @@ export default function Calendar() {
       </div>
       <div style={{ height: '1px', backgroundColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', marginBottom: '20px' }} />
       {loading ? (
-        <LoadingSplash label="Loading your history..." />
-      ) : (
-        view === 'year' ? <YearView /> : <MonthView />
-      )}
+  <div />
+) : (
+  view === 'year' ? <YearView /> : <MonthView />
+)}
     </AppLayout>
   )
 }

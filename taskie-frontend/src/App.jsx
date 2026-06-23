@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
+import { PageTransitionProvider } from './context/PageTransitionContext'
 import PrivateRoute from './components/common/PrivateRoute'
 
 import Landing from './pages/Landing'
@@ -15,19 +16,21 @@ import Journal from './pages/Journal'
 import Analytics from './pages/Analytics'
 
 export default function App() {
+  console.log('APP RENDERED')
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: '#111',
-                color: '#f0f0f0',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '12px',
-                fontSize: '14px',
+        <PageTransitionProvider>
+          <BrowserRouter>
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                style: {
+                  background: '#111',
+                  color: '#f0f0f0',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '12px',
+                  fontSize: '14px',
               },
             }}
           />
@@ -45,6 +48,7 @@ export default function App() {
             </Route>
           </Routes>
         </BrowserRouter>
+        </PageTransitionProvider>
       </AuthProvider>
     </ThemeProvider>
   )

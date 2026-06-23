@@ -1,5 +1,5 @@
 import React from 'react'
-import InfinityLoader from './InfinityLoader'
+import DotMatrixLoader from './DotMatrixLoader'
 import { useTheme } from '../../context/ThemeContext'
 
 export default function LoadingSplash({ label = 'Loading...' }) {
@@ -16,7 +16,7 @@ export default function LoadingSplash({ label = 'Loading...' }) {
       height: '60vh',
       gap: '16px',
     }}>
-      <InfinityLoader size={72} />
+      <DotMatrixLoader size={56} dotSize={7} color="#ff4d00" speed={1.2} />
       <span style={{
         fontSize: '13px',
         color: subtle,

@@ -4,11 +4,11 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import AppLayout from '../components/common/AppLayout'
-import LoadingSplash from '../components/common/LoadingSplash'
 import { useTheme } from '../context/ThemeContext'
 import * as taskApi from '../api/tasks'
 import * as scheduleApi from '../api/schedule'
 import * as journalApi from '../api/journal'
+import { usePageTransition } from '../context/PageTransitionContext'
 
 const RANGES = [
   { key: 7, label: '7d' },
@@ -39,6 +39,7 @@ function getDateRange(days) {
 export default function Analytics() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
+  const { reportReady } = usePageTransition()
 
   const [range, setRange] = useState(7)
   const [loading, setLoading] = useState(true)
@@ -86,19 +87,16 @@ export default function Analytics() {
       ;(allJournal || []).forEach(e => { if (dateSet.has(e.date)) jByDate[e.date] = e })
       setJournalEntries(jByDate)
     } catch (err) {
-      console.error('Failed to load analytics data:', err)
-    } finally {
-      setLoading(false)
-    }
+  console.error('Failed to load Analytics data:', err)
+} finally {
+  setLoading(false)
+  reportReady()
+}
   }
 
   if (loading) {
-    return (
-      <AppLayout>
-        <LoadingSplash label="Crunching your numbers..." />
-      </AppLayout>
-    )
-  }
+  return <AppLayout><div /></AppLayout>
+}
 
   const dates = getDateRange(range)
 

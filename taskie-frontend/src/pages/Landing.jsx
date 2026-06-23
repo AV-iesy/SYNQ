@@ -14,7 +14,7 @@ export default function Landing() {
       {/* Logo */}
       {/* Logo */}
 <div style={{ marginBottom: '32px', position: 'relative', zIndex: 1 }}>
-  <InfinityIcon size={48} color="#ff4d00" strokeWidth={2.5} />
+  <InfinityIcon size={98} color="#ff4d00" strokeWidth={2.5} />
 </div>
 
       {/* Headline */}
@@ -22,8 +22,8 @@ export default function Landing() {
   className="text-center"
   style={{
     fontFamily: 'Bricolage Grotesque, sans-serif',
-    fontSize: '52px',
-    fontWeight: 700,
+    fontSize: '92px',
+    fontWeight: 900,
     color: '#f0f0f0',
     letterSpacing: '-1.5px',
     lineHeight: 1.15,

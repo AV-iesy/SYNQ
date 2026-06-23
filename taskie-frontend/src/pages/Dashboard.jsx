@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
 import InfinityIcon from '../components/common/InfinityIcon'
-import LoadingSplash from '../components/common/LoadingSplash'
+import { usePageTransition } from '../context/PageTransitionContext'
 import ProgressiveBlur from '../components/common/ProgressiveBlur'
 import * as taskApi from '../api/tasks'
 import * as scheduleApi from '../api/schedule'
@@ -213,6 +213,9 @@ function ActivityRings({ completionPct, tasksPct, studyPct }) {
 export default function Dashboard() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
+   //const { reportReady } = usePageTransition()
+   const pageTransition = usePageTransition()
+const reportReady = pageTransition?.reportReady || (() => {}) //checkout
 
   const todayKey = getTodayKey()
 
@@ -249,10 +252,11 @@ const [adjustText, setAdjustText] = useState('')
     const scheduleDates = new Set((allSchedules || []).map(s => s.date))
     setCalendarData(buildCalendarData(scheduleDates))
   } catch (err) {
-    console.error('Failed to load dashboard data:', err)
-  } finally {
-    setLoading(false)
-  }
+  console.error('Failed to load dashboard data:', err)
+} finally {
+  setLoading(false)
+  reportReady()
+}
 }
 
   const completed = tasks.filter(t => t.status === 'completed').length
@@ -369,11 +373,7 @@ const handleAdjustNow = (newTitle) => {
   })
 
  if (loading) {
-  return (
-    <AppLayout>
-      <LoadingSplash label="Loading your dashboard..." />
-    </AppLayout>
-  )
+  return <AppLayout><div /></AppLayout>
 }
 
   return (

@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
 import InteractiveHoverButton from './InteractiveHoverButton'
+import DotMatrixLoader from './DotMatrixLoader'
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -17,6 +19,17 @@ export default function AppLayout({ children }) {
   const location = useLocation()
   const navigate = useNavigate()
   const dark = theme === 'dark'
+  const [transitioning, setTransitioning] = useState(false)
+
+  const handleNavClick = (e, to) => {
+    e.preventDefault()
+    if (location.pathname === to) return
+    setTransitioning(true)
+    setTimeout(() => {
+      navigate(to)
+      setTransitioning(false)
+    }, 1000)
+  }
 
   const bg = dark ? '#000000' : '#f5f5f5'
   const sidebar = dark ? '#000000' : '#ececec'
@@ -50,26 +63,31 @@ export default function AppLayout({ children }) {
         {/* Nav */}
         <nav style={{ padding: '8px 12px', flex: 1 }}>
           {navItems.map(item => {
-            const active = location.pathname === item.to
-            return (
-              <Link key={item.to} to={item.to} style={{
-                display: 'flex', alignItems: 'center',
-                padding: '10px 14px',
-                borderRadius: '10px',
-                marginBottom: '2px',
-                textDecoration: 'none',
-                fontSize: '14px',
-                fontFamily: 'Inter, sans-serif',
-                fontWeight: active ? 500 : 400,
-                transition: 'all 0.15s',
-                backgroundColor: active ? 'rgba(255,77,0,0.1)' : 'transparent',
-                color: active ? '#ff4d00' : subtle,
-                borderLeft: active ? '2px solid #ff4d00' : '2px solid transparent',
-              }}>
-                {item.label}
-              </Link>
-            )
-          })}
+  const active = location.pathname === item.to
+  return (
+    <Link
+      key={item.to}
+      to={item.to}
+      onClick={(e) => handleNavClick(e, item.to)}
+      style={{
+        display: 'flex', alignItems: 'center',
+        padding: '10px 14px',
+        borderRadius: '10px',
+        marginBottom: '2px',
+        textDecoration: 'none',
+        fontSize: '14px',
+        fontFamily: 'Inter, sans-serif',
+        fontWeight: active ? 500 : 400,
+        transition: 'all 0.15s',
+        backgroundColor: active ? 'rgba(255,77,0,0.1)' : 'transparent',
+        color: active ? '#ff4d00' : subtle,
+        borderLeft: active ? '2px solid #ff4d00' : '2px solid transparent',
+      }}
+    >
+      {item.label}
+    </Link>
+  )
+})}
         </nav>
 
         {/* Bottom */}
@@ -104,8 +122,8 @@ export default function AppLayout({ children }) {
               {user?.email || ''}
             </div>
             <InteractiveHoverButton onClick={() => { logout(); navigate('/') }} dark={dark}>
-  Log out →
-</InteractiveHoverButton>
+               Log out →
+            </InteractiveHoverButton>
           </div>
         </div>
       </aside>
@@ -118,6 +136,17 @@ export default function AppLayout({ children }) {
       }}>
         {children}
       </main>
+
+      {/* Route transition overlay */}
+      {transitioning && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 999,
+          backgroundColor: bg,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <DotMatrixLoader size={56} dotSize={7} color="#ffffff" speed={1.2} />
+        </div>
+      )}
     </div>
   )
 }

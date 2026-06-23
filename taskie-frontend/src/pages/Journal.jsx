@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import AppLayout from '../components/common/AppLayout'
-import LoadingSplash from '../components/common/LoadingSplash'
 import { useTheme } from '../context/ThemeContext'
 import * as journalApi from '../api/journal'
 import * as scheduleApi from '../api/schedule'
+import { usePageTransition } from '../context/PageTransitionContext'
 
 const MOODS = [
   { key: 'great', label: 'Great', color: '#ff4d00' },
@@ -101,6 +101,7 @@ function MoodDropdown({ value, onChange, faint, text, subtle, cardBg, dark }) {
 export default function Journal() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
+  const { reportReady } = usePageTransition()
 
   const today = new Date()
   const todayKey = today.toISOString().split('T')[0]
@@ -136,20 +137,21 @@ export default function Journal() {
   }, [])
 
   const loadEntries = async () => {
-    setLoading(true)
-    try {
-      const list = await journalApi.getAllEntries()
-      const byDate = {}
-      list.forEach(e => { byDate[e.date] = e })
-      setEntries(byDate)
-      setDraftMood(byDate[todayKey]?.mood || null)
-      setDraftText(byDate[todayKey]?.text || '')
-    } catch (err) {
-      console.error('Failed to load journal entries:', err)
-    } finally {
-      setLoading(false)
-    }
+  setLoading(true)
+  try {
+    const list = await journalApi.getAllEntries()
+    const byDate = {}
+    list.forEach(e => { byDate[e.date] = e })
+    setEntries(byDate)
+    setDraftMood(byDate[todayKey]?.mood || null)
+    setDraftText(byDate[todayKey]?.text || '')
+  } catch (err) {
+    console.error('Failed to load journal entries:', err)
+  } finally {
+    setLoading(false)
+    reportReady()
   }
+}
 
   const selectDate = (dateKey) => {
     setSelectedDate(dateKey)
@@ -214,12 +216,8 @@ export default function Journal() {
   }
 
   if (loading) {
-    return (
-      <AppLayout>
-        <LoadingSplash label="Loading your journal..." />
-      </AppLayout>
-    )
-  }
+  return <AppLayout><div /></AppLayout>
+}
 
   return (
     <AppLayout>
