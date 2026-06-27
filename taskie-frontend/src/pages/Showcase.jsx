@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import InfinityIcon from '../components/common/InfinityIcon'
 import Iphone from '../components/common/Iphone'
@@ -39,13 +40,13 @@ function DashboardScreen() {
 }
 
 function CalendarScreen() {
-  const monthColors = ['#4a6fd4','#8b2252','#6b7c2e','#c0392b','#c9944a','#ff4d00','#666','#8b4fb5','#1a3a8f','#7a3010','#4a90d9','#8b1a1a']
+  const monthColors = ['#4a6fd4','#8b2252','#6b7c2e','#c0392b','#c9944a','#ff4d00','#666','#8b4fb5','#1a3a8f']
   return (
     <div style={{ padding: '20px 14px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
       <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.35)', fontFamily: 'Inter, sans-serif', marginBottom: '2px' }}>Archive</div>
       <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '20px', fontWeight: 700, color: '#ff4d00', marginBottom: '16px' }}>Calendar</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-        {monthColors.slice(0, 9).map((c, i) => (
+        {monthColors.map((c, i) => (
           <div key={i} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', overflow: 'hidden' }}>
             <div style={{ backgroundColor: c, padding: '4px 6px', fontSize: '7px', color: 'white', fontFamily: 'Bricolage Grotesque, sans-serif', fontWeight: 700 }}>
               {['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP'][i]}
@@ -129,81 +130,242 @@ function AnalyticsScreen() {
   )
 }
 
-const SCREENS = [
-  { name: 'Dashboard', Component: DashboardScreen },
-  { name: 'Calendar', Component: CalendarScreen },
-  { name: 'Journal', Component: JournalScreen },
-  { name: 'Analytics', Component: AnalyticsScreen },
-]
+// function SplashScreen() {
+//   const words = ['built', 'for', 'the', 'consistent.']
+// const finalWords = ['be', 'consistent.']
+//   const [visibleCount, setVisibleCount] = useState(0)
+//   const [isolated, setIsolated] = useState(false)
 
-function MultiPhoneHero() {
+//   useEffect(() => {
+//     const timers = []
+//     words.forEach((_, i) => {
+//       timers.push(setTimeout(() => setVisibleCount(i + 1), i * 450))
+//     })
+//     // After all words shown, wait 1s, then isolate "consistent."
+//     timers.push(setTimeout(() => setIsolated(true), words.length * 450 + 1000))
+//     return () => timers.forEach(clearTimeout)
+//   }, [])
+
+//   return (
+//     <div style={{
+//       height: '100%', display: 'flex', flexDirection: 'column',
+//       alignItems: 'center', justifyContent: 'center', padding: '0 20px',
+//       textAlign: 'center',
+//     }}>
+//       <div style={{
+//         fontFamily: 'Helvetica, sans-serif', fontWeight: 600,
+//         fontSize: '48px', lineHeight: 1.3,
+//         letterSpacing: '-0.02em', textTransform: 'lowercase',
+//       }}>
+//         {!isolated ? (
+//   words.map((word, i) => {
+//     const isLast = i === words.length - 1
+//     const shown = i < visibleCount
+//     return (
+//       <span key={i}>
+//         <span
+//           style={{
+//             display: 'inline-block',
+//             color: isLast ? '#ff4d00' : '#f0f0f0',
+//             opacity: shown ? 1 : 0,
+//             transform: shown ? 'translateY(0)' : 'translateY(8px)',
+//             transition: 'opacity 0.5s ease, transform 0.5s ease',
+//           }}
+//         >
+//           {word}
+//         </span>
+//         {i < words.length - 1 ? ' ' : ''}
+//         {i === 2 ? <br /> : ''}
+//       </span>
+//     )
+//   })
+// ) : (
+//   <span style={{ animation: 'fadeInScale 0.6s ease forwards' }}>
+//     <span style={{ color: '#f0f0f0' }}>{finalWords[0]}</span>{' '}
+//     <span style={{
+//       color: '#ff4d00',
+//       fontSize: '34px',
+//       textShadow: '0 0 24px rgba(255,77,0,0.6)',
+//     }}>
+//       {finalWords[1]}
+//     </span>
+//   </span>
+// )}
+//       </div>
+//     </div>
+//   )
+// }
+function SplashScreen() {
+  const words = ['built', 'for', 'the', 'consistent.']
+  const [visibleCount, setVisibleCount] = useState(0)
+  const [focusMode, setFocusMode] = useState(false)
+
+  useEffect(() => {
+    const timers = []
+    words.forEach((_, i) => {
+      timers.push(setTimeout(() => setVisibleCount(i + 1), i * 450))
+    })
+    timers.push(setTimeout(() => setFocusMode(true), words.length * 450 + 900))
+    return () => timers.forEach(clearTimeout)
+  }, [])
+
   return (
-    <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', gap: '32px', padding: '20px 40px 60px' }}>
-      {/* Glow */}
+    <div style={{
+      height: '100%',
+      background: '#050505',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      overflow: 'hidden',
+      padding: '0 16px',
+    }}>
       <div style={{
-        position: 'absolute', top: '15%', left: '50%', transform: 'translateX(-50%)',
-        width: '700px', height: '380px', borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(255,77,0,0.18) 0%, transparent 70%)',
-        filter: 'blur(50px)', zIndex: 0,
-      }} />
+        position: 'relative',
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+        fontWeight: 700,
+        fontSize: 'clamp(20px, 7vw, 26px)',
+        lineHeight: 1.15,
+        letterSpacing: '-0.03em',
+        textAlign: 'center',
+      }}>
+        {!focusMode ? (
+          <>
+            {words.map((word, i) => {
+              const shown = visibleCount > i
+              return (
+                <span
+                  key={word}
+                  style={{
+                    display: 'inline-block',
+                    marginRight: i !== words.length - 1 ? 8 : 0,
+                    opacity: shown ? 1 : 0,
+                    transform: shown ? 'translateY(0px)' : 'translateY(14px)',
+                    transition: 'opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1)',
+                    color: i === words.length - 1 ? '#ff5a1f' : '#F4F4F4',
+                  }}
+                >
+                  {word}
+                  {i === 2 && <br />}
+                </span>
+              )
+            })}
+          </>
+        ) : (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+          }}>
+            <span style={{
+              color: '#777',
+              fontSize: 'clamp(22px, 7vw, 48px)',
+              animation: 'slideIn .8s cubic-bezier(.16,1,.3,1) forwards',
+            }}>
+              be
+            </span>
+            <span style={{
+              color: '#ff5a1f',
+              fontWeight: 800,
+              fontSize: 'clamp(22px, 7vw, 48px)',
+              animation: 'heroReveal 1s cubic-bezier(.16,1,.3,1) forwards',
+            }}>
+              consistent.
+            </span>
+          </div>
+        )}
+      </div>
 
-      {SCREENS.map((s) => (
-        <div
-          key={s.name}
-          style={{
-            position: 'relative',
-            zIndex: 1,
-            filter: 'drop-shadow(0 20px 45px rgba(0,0,0,0.55))',
-          }}
-        >
-          <Iphone width={230}>
-            <s.Component />
-          </Iphone>
-
-          {/* Label */}
-          <div
-  style={{
-    position: 'absolute',
-    bottom: '-36px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-  }}
->
-  <span
-    style={{
-      fontSize: '16px',
-      fontFamily: 'Inter, sans-serif',
-      fontWeight: 500,
-      color: '#ff4d00',
-    }}
-  >
-    {s.name}
-  </span>
-</div>
-        </div>
-      ))}
+      <style>{`
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(-20px); filter: blur(6px); }
+          to { opacity: 1; transform: translateX(0); filter: blur(0); }
+        }
+        @keyframes heroReveal {
+          0% { opacity: 0; transform: translateY(14px) scale(.94); letter-spacing: -0.08em; filter: blur(8px); }
+          60% { opacity: 1; transform: translateY(0) scale(1.03); }
+          100% { opacity: 1; transform: translateY(0) scale(1); letter-spacing: -0.03em; filter: blur(0); }
+        }
+      `}</style>
     </div>
   )
 }
 
+const SCREENS = [
+  { name: 'Splash', Component: SplashScreen, side: null },
+  {
+    name: 'Dashboard', Component: DashboardScreen, side: 'left',
+    title: 'Your day, at a glance',
+    desc: 'See your schedule, tasks, and activity rings the moment you open the app. Everything you need to know about today, in one screen.',
+  },
+  {
+    name: 'Calendar', Component: CalendarScreen, side: 'right',
+    title: 'Build your streak',
+    desc: 'A full year of your consistency, color-coded by month. Watch your habits compound, one square at a time.',
+  },
+  {
+    name: 'Journal', Component: JournalScreen, side: 'left',
+    title: 'Reflect, daily',
+    desc: 'Track your mood and write about your day — with AI drafts pulled from what you actually did, so reflection never feels like a chore.',
+  },
+  {
+    name: 'Analytics', Component: AnalyticsScreen, side: 'right',
+    title: 'Know your patterns',
+    desc: 'Real trends from your real data — completion rates, focus hours, and mood correlation, all in one view.',
+  },
+]
+
 export default function Showcase() {
+  const scrollContainerRef = useRef(null)
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const el = scrollContainerRef.current
+      if (!el) return
+
+      const rect = el.getBoundingClientRect()
+      const total = rect.height - window.innerHeight
+      const scrolled = -rect.top
+      const progress = Math.min(1, Math.max(0, scrolled / total))
+
+      const index = Math.min(SCREENS.length - 1, Math.floor(progress * SCREENS.length))
+      setActiveIndex(index)
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  const { Component, name } = SCREENS[activeIndex]
+
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#080808', overflow: 'hidden' }}>
-      {/* Header */}
+    <div style={{ backgroundColor: '#000' }}>
+
+      {/* Nav — fixed on top */}
       <div style={{
+        position: 'fixed', top: '24px', left: '50%', transform: 'translateX(-50%)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '28px 48px', position: 'relative', zIndex: 2,
+        width: 'calc(100% - 48px)', maxWidth: '1100px',
+        padding: '16px 22px',
+        borderRadius: '52px',
+        backgroundColor: 'rgba(10,10,10,0.7)',
+        backdropFilter: 'blur(36px)',
+        boxShadow: 'rgba(0,0,0,0.06) 0px 8px 30px 0px',
+        border: '1px solid rgba(255,255,255,0.06)',
+        zIndex: 100,
       }}>
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-          <InfinityIcon size={26} color="#ff4d00" strokeWidth={2.5} />
-          <span style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontWeight: 700, fontSize: '17px', color: '#f0f0f0' }}>SYNQ</span>
+          <InfinityIcon size={22} color="#ff4d00" strokeWidth={2.5} />
+          <span style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontWeight: 700, fontSize: '16px', color: '#f0f0f0' }}>SYNQ</span>
         </Link>
         <Link
           to="/login"
           style={{
-            padding: '10px 22px', borderRadius: '8px',
-            backgroundColor: '#ff4d00', color: 'white',
-            fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '13px',
+            padding: '10px 22px', borderRadius: '30px',
+            backgroundColor: 'transparent', border: '1px solid rgba(255,255,255,0.3)',
+            color: '#f0f0f0', fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px',
             textDecoration: 'none',
           }}
         >
@@ -211,43 +373,119 @@ export default function Showcase() {
         </Link>
       </div>
 
-      {/* Hero text */}
-      <div style={{ textAlign: 'center', padding: '20px 24px 0', position: 'relative', zIndex: 2 }}>
-        <div style={{
-          fontFamily: 'Bricolage Grotesque, sans-serif', fontWeight: 700,
-          fontSize: 'clamp(40px, 7vw, 90px)', lineHeight: 1.02,
-          color: '#f0f0f0', letterSpacing: '-2px', textTransform: 'lowercase',
-        }}>
-          built for the<br />
-          <span style={{ color: '#ff4d00' }}>consistent.</span>
-        </div>
-        <p style={{
-          fontFamily: 'Inter, sans-serif', fontSize: '15px', color: 'rgba(255,255,255,0.4)',
-          maxWidth: '420px', margin: '20px auto 0', lineHeight: 1.6,
-        }}>
-          SYNQ is built for people who show up daily — plan, track, reflect, and grow with everything in one rhythm.
-        </p>
-      </div>
+      
+      {/* Scroll-controlled phone section */}
+<div ref={scrollContainerRef} style={{ position: 'relative', height: '400vh' }}>
+  <div style={{
+  position: 'sticky',
+  top: 0,
+  height: '100vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}}>
+  {/* Glow */}
+  <div style={{
+    position: 'absolute', top: '15%', left: '50%', transform: 'translateX(-50%)',
+    width: '600px', height: '600px', borderRadius: '50%',
+    background: 'radial-gradient(circle, rgba(255,77,0,0.16) 0%, transparent 70%)',
+    filter: 'blur(70px)', zIndex: 0,
+  }} />
 
-{/* Hero phones */}
-<div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px', position: 'relative', zIndex: 1 }}>
-  <MultiPhoneHero />
+  {/* Outer row: left text | phone | right text */}
+  <div style={{
+    position: 'relative', zIndex: 1,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    gap: '64px', width: '100%', maxWidth: '1200px', padding: '0 48px',
+  }}>
+
+    {/* Left text slot */}
+    <div style={{ flex: 1, textAlign: 'right' }}>
+      {SCREENS.map((s, i) => {
+        if (s.side !== 'left') return null
+        const active = i === activeIndex
+        return (
+          <div
+            key={s.name}
+            style={{
+              position: active ? 'static' : 'absolute',
+              opacity: active ? 1 : 0,
+              transform: active ? 'translateX(0)' : 'translateX(-20px)',
+              transition: 'opacity 0.6s ease, transform 0.6s ease',
+              pointerEvents: active ? 'auto' : 'none',
+            }}
+          >
+            <h3 style={{
+              fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '48px', fontWeight: 600,
+              color: '#f0f0f0', letterSpacing: '-0.02em', marginBottom: '12px',
+            }}>
+              {s.title}
+            </h3>
+            <p style={{
+              fontFamily: 'Inter, sans-serif', fontSize: '18px', color: 'rgba(255,255,255,0.45)',
+              lineHeight: 1.6, maxWidth: '280px', marginLeft: 'auto',
+            }}>
+              {s.desc}
+            </p>
+          </div>
+        )
+      })}
+    </div>
+
+    {/* Phone */}
+    <div style={{
+      filter: 'drop-shadow(rgba(0,0,0,0.5) 0px 30px 90px)',
+      flexShrink: 0,
+    }}>
+      <Iphone width={370}>
+        <Component />
+      </Iphone>
+    </div>
+
+    {/* Right text slot */}
+    <div style={{ flex: 1, textAlign: 'left' }}>
+      {SCREENS.map((s, i) => {
+        if (s.side !== 'right') return null
+        const active = i === activeIndex
+        return (
+          <div
+            key={s.name}
+            style={{
+              position: active ? 'static' : 'absolute',
+              opacity: active ? 1 : 0,
+              transform: active ? 'translateX(0)' : 'translateX(20px)',
+              transition: 'opacity 0.6s ease, transform 0.6s ease',
+              pointerEvents: active ? 'auto' : 'none',
+            }}
+          >
+            <h3 style={{
+              fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '48px', fontWeight: 600,
+              color: '#f0f0f0', letterSpacing: '-0.02em', marginBottom: '12px',
+            }}>
+              {s.title}
+            </h3>
+            <p style={{
+              fontFamily: 'Inter, sans-serif', fontSize: '18px', color: 'rgba(255,255,255,0.45)',
+              lineHeight: 1.6, maxWidth: '280px',
+            }}>
+              {s.desc}
+            </p>
+          </div>
+        )
+      })}
+    </div>
+  </div>
 </div>
-
-      {/* Bottom CTA */}
-      <div style={{ textAlign: 'center', padding: '60px 24px 80px', position: 'relative', zIndex: 2 }}>
-        <Link
-          to="/login"
-          style={{
-            display: 'inline-block', padding: '15px 36px', borderRadius: '10px',
-            backgroundColor: '#ff4d00', color: 'white',
-            fontFamily: 'Bricolage Grotesque, sans-serif', fontWeight: 700, fontSize: '15px',
-            textDecoration: 'none',
-          }}
-        >
-          Start your streak →
-        </Link>
       </div>
+
+      
+
+      <style>{`
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(8px); }
+        }
+      `}</style>
     </div>
   )
 }

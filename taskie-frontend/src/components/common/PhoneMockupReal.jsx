@@ -6,14 +6,14 @@ export default function PhoneMockupReal({ width = 320, children }) {
 
   return (
     <div style={{ position: 'relative', width, height }}>
-      {/* Screen content sits behind the phone+hand image */}
+      {/* Screen content sits behind the phone+hand image, visible through the real cutout */}
       <div style={{
         position: 'absolute',
-        left: '28%',
-        top: '11.5%',
-        width: '46%',
-        height: '72%',
-        borderRadius: `${width * 0.045}px`,
+        left: '28.3%',
+        top: '11.6%',
+        width: '45.2%',
+        height: '71.5%',
+        borderRadius: `${width * 0.05}px`,
         overflow: 'hidden',
         backgroundColor: '#000',
         zIndex: 1,
@@ -21,7 +21,7 @@ export default function PhoneMockupReal({ width = 320, children }) {
         {children}
       </div>
 
-      {/* Hand + phone frame on top, transparent background, transparent screen cutout */}
+      {/* Hand + phone frame with real transparent screen cutout */}
       <img
         src={phoneMockup}
         alt=""
