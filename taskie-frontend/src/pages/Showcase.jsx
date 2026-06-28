@@ -3,198 +3,246 @@ import { Link } from 'react-router-dom'
 import InfinityIcon from '../components/common/InfinityIcon'
 import Iphone from '../components/common/Iphone'
 
-// ── Mini screen recreations ─────────────────────────────────
-function DashboardScreen() {
+// ── Design tokens for phone-screen content ──────────────────
+const T = {
+  textPrimary: 'rgba(255,255,255,0.94)',
+  textSecondary: 'rgba(255,255,255,0.6)',
+  textTertiary: 'rgba(255,255,255,0.4)',
+  glassBg: 'rgba(255,255,255,0.05)',
+  glassBorder: 'rgba(255,255,255,0.09)',
+  glassHighlight: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+  s1: '4px', s2: '8px', s3: '12px', s4: '16px', s6: '24px',
+}
+
+// Reusable glass card with inner highlight + soft gradient
+function GlassCard({ children, style = {} }) {
   return (
-    <div style={{ padding: '20px 14px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-      <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.35)', fontFamily: 'Inter, sans-serif', marginBottom: '2px' }}>Saturday, June 20</div>
-      <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '20px', fontWeight: 700, color: '#ff4d00', marginBottom: '16px' }}>Dashboard</div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
-        <svg width="64" height="64" viewBox="0 0 64 64" style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,77,0,0.15)" strokeWidth="7" />
-          <circle cx="32" cy="32" r="26" fill="none" stroke="#ff4d00" strokeWidth="7" strokeDasharray="163" strokeDashoffset="50" strokeLinecap="round" />
-          <circle cx="32" cy="32" r="18" fill="none" stroke="rgba(90,173,122,0.15)" strokeWidth="6" />
-          <circle cx="32" cy="32" r="18" fill="none" stroke="#5aad7a" strokeWidth="6" strokeDasharray="113" strokeDashoffset="30" strokeLinecap="round" />
-        </svg>
-        <div>
-          <div style={{ fontSize: '7px', color: '#ff4d00', fontFamily: 'Inter, sans-serif' }}>70% completion</div>
-          <div style={{ fontSize: '7px', color: '#5aad7a', fontFamily: 'Inter, sans-serif' }}>65% tasks</div>
-        </div>
-      </div>
-
-      <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.4)', fontFamily: 'Inter, sans-serif', marginBottom: '6px' }}>TODAY'S SCHEDULE</div>
-      {[
-        { t: '06:00', l: 'Wake up', c: '#c9944a' },
-        { t: '09:00', l: 'Deep work', c: '#4a90d9' },
-        { t: '13:00', l: 'Gym', c: '#ff4d00' },
-      ].map((b, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '6px', marginBottom: '4px' }}>
-          <span style={{ fontSize: '7px', color: 'rgba(255,255,255,0.4)', minWidth: '24px', fontFamily: 'Inter, sans-serif' }}>{b.t}</span>
-          <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: b.c }} />
-          <span style={{ fontSize: '8px', color: 'rgba(255,255,255,0.75)', fontFamily: 'Inter, sans-serif' }}>{b.l}</span>
-        </div>
-      ))}
+    <div style={{
+      backgroundColor: T.glassBg,
+      border: `1px solid ${T.glassBorder}`,
+      borderRadius: '12px',
+      boxShadow: `${T.glassHighlight}, 0 4px 16px rgba(0,0,0,0.25)`,
+      backgroundImage: 'linear-gradient(160deg, rgba(255,255,255,0.04), rgba(255,255,255,0) 60%)',
+      ...style,
+    }}>
+      {children}
     </div>
   )
 }
 
-function CalendarScreen() {
+// ── SVG icon set for the dock ─────────────────────────────────
+const Icons = {
+  grid: (color) => (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" fill={color} />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" fill={color} opacity="0.55" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" fill={color} opacity="0.55" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" fill={color} opacity="0.55" />
+    </svg>
+  ),
+  sparkles: (color) => (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2L13.8 8.2L20 10L13.8 11.8L12 18L10.2 11.8L4 10L10.2 8.2L12 2Z" fill={color} />
+      <path d="M19 14L19.8 16.5L22 17.3L19.8 18.1L19 20.5L18.2 18.1L16 17.3L18.2 16.5L19 14Z" fill={color} opacity="0.6" />
+    </svg>
+  ),
+  calendar: (color) => (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="5" width="18" height="16" rx="2.5" stroke={color} strokeWidth="2" fill="none" />
+      <path d="M3 9.5H21" stroke={color} strokeWidth="2" />
+      <path d="M8 3V6.5M16 3V6.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <circle cx="8" cy="14" r="1.4" fill={color} />
+      <circle cx="13" cy="14" r="1.4" fill={color} opacity="0.5" />
+    </svg>
+  ),
+  pen: (color) => (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M4 20L4.8 16.2L16 5L19 8L7.8 19.2L4 20Z" fill={color} />
+      <path d="M14 7L17 10" stroke="#000" strokeOpacity="0.2" strokeWidth="1.5" />
+    </svg>
+  ),
+  chart: (color) => (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <rect x="4" y="13" width="4" height="8" rx="1" fill={color} opacity="0.55" />
+      <rect x="10" y="8" width="4" height="13" rx="1" fill={color} />
+      <rect x="16" y="3" width="4" height="18" rx="1" fill={color} opacity="0.8" />
+    </svg>
+  ),
+}
+
+// ── Mini screen recreations ─────────────────────────────────
+function DashboardScreen({ onNavigate }) {
+  return (
+    <div style={{ height: '100%', position: 'relative' }}>
+      <div style={{ padding: '20px 16px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: T.s4 }}>
+        <div>
+          <div style={{ fontSize: '9px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', marginBottom: T.s1 }}>Saturday, June 20</div>
+          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '26px', fontWeight: 700, color: T.textPrimary, letterSpacing: '-0.02em' }}>
+            Dashboard
+          </div>
+        </div>
+
+        <GlassCard style={{ padding: T.s4, display: 'flex', alignItems: 'center', gap: T.s4 }}>
+          <svg width="58" height="58" viewBox="0 0 64 64" style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+            <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,77,0,0.15)" strokeWidth="7" />
+            <circle cx="32" cy="32" r="26" fill="none" stroke="#ff4d00" strokeWidth="7" strokeDasharray="163" strokeDashoffset="50" strokeLinecap="round" />
+            <circle cx="32" cy="32" r="18" fill="none" stroke="rgba(90,173,122,0.15)" strokeWidth="6" />
+            <circle cx="32" cy="32" r="18" fill="none" stroke="#5aad7a" strokeWidth="6" strokeDasharray="113" strokeDashoffset="30" strokeLinecap="round" />
+          </svg>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: T.s1 }}>
+            <div>
+              <span style={{ fontSize: '15px', fontWeight: 700, color: '#ff4d00', fontFamily: 'Bricolage Grotesque, sans-serif' }}>70%</span>
+              <span style={{ fontSize: '9px', color: T.textSecondary, fontFamily: 'Inter, sans-serif', marginLeft: '4px' }}>completion</span>
+            </div>
+            <div>
+              <span style={{ fontSize: '15px', fontWeight: 700, color: '#5aad7a', fontFamily: 'Bricolage Grotesque, sans-serif' }}>65%</span>
+              <span style={{ fontSize: '9px', color: T.textSecondary, fontFamily: 'Inter, sans-serif', marginLeft: '4px' }}>tasks</span>
+            </div>
+          </div>
+        </GlassCard>
+
+        <div>
+          <div style={{ fontSize: '9px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: T.s2 }}>
+            Today's schedule
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: T.s2 }}>
+            {[
+              { t: '06:00', l: 'Wake up', c: '#c9944a' },
+              { t: '09:00', l: 'Deep work', c: '#4a90d9' },
+              { t: '13:00', l: 'Gym', c: '#ff4d00' },
+            ].map((b, i) => (
+              <GlassCard key={i} style={{ display: 'flex', alignItems: 'center', gap: T.s2, padding: '8px 10px' }}>
+                <span style={{ fontSize: '8px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', minWidth: '26px' }}>{b.t}</span>
+                <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: b.c, flexShrink: 0 }} />
+                <span style={{ fontSize: '9px', color: T.textPrimary, fontFamily: 'Inter, sans-serif' }}>{b.l}</span>
+              </GlassCard>
+            ))}
+          </div>
+        </div>
+      </div>
+      <PhoneDock activeKey="dashboard" onSelect={onNavigate} />
+    </div>
+  )
+}
+
+function CalendarScreen({ onNavigate }) {
   const monthColors = ['#4a6fd4','#8b2252','#6b7c2e','#c0392b','#c9944a','#ff4d00','#666','#8b4fb5','#1a3a8f']
   return (
-    <div style={{ padding: '20px 14px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-      <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.35)', fontFamily: 'Inter, sans-serif', marginBottom: '2px' }}>Archive</div>
-      <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '20px', fontWeight: 700, color: '#ff4d00', marginBottom: '16px' }}>Calendar</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-        {monthColors.map((c, i) => (
-          <div key={i} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', overflow: 'hidden' }}>
-            <div style={{ backgroundColor: c, padding: '4px 6px', fontSize: '7px', color: 'white', fontFamily: 'Bricolage Grotesque, sans-serif', fontWeight: 700 }}>
-              {['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP'][i]}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1px', padding: '4px' }}>
-              {Array.from({ length: 15 }, (_, j) => (
-                <div key={j} style={{
-                  aspectRatio: '1', borderRadius: '1px',
-                  backgroundColor: Math.random() > 0.5 ? `${c}88` : 'rgba(255,255,255,0.04)',
-                }} />
-              ))}
-            </div>
+    <div style={{ height: '100%', position: 'relative' }}>
+      <div style={{ padding: '20px 16px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: T.s4 }}>
+        <div>
+          <div style={{ fontSize: '9px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', marginBottom: T.s1 }}>Archive</div>
+          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '26px', fontWeight: 700, color: T.textPrimary, letterSpacing: '-0.02em' }}>
+            Calendar
           </div>
-        ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: T.s2 }}>
+          {monthColors.map((c, i) => (
+            <GlassCard key={i} style={{ overflow: 'hidden', padding: 0 }}>
+              <div style={{ backgroundColor: c, padding: '5px 6px', fontSize: '7px', color: 'white', fontFamily: 'Bricolage Grotesque, sans-serif', fontWeight: 700 }}>
+                {['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP'][i]}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1px', padding: '4px' }}>
+                {Array.from({ length: 15 }, (_, j) => (
+                  <div key={j} style={{
+                    aspectRatio: '1', borderRadius: '1px',
+                    backgroundColor: Math.random() > 0.5 ? `${c}88` : 'rgba(255,255,255,0.04)',
+                  }} />
+                ))}
+              </div>
+            </GlassCard>
+          ))}
+        </div>
       </div>
+      <PhoneDock activeKey="calendar" onSelect={onNavigate} />
     </div>
   )
 }
 
-function JournalScreen() {
+function JournalScreen({ onNavigate }) {
   return (
-    <div style={{ padding: '20px 14px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-      <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.35)', fontFamily: 'Inter, sans-serif', marginBottom: '2px' }}>Saturday, June 20</div>
-      <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '20px', fontWeight: 700, color: '#ff4d00', marginBottom: '16px' }}>Journal</div>
+    <div style={{ height: '100%', position: 'relative' }}>
+      <div style={{ padding: '20px 16px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: T.s4 }}>
+        <div>
+          <div style={{ fontSize: '9px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', marginBottom: T.s1 }}>Saturday, June 20</div>
+          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '26px', fontWeight: 700, color: T.textPrimary, letterSpacing: '-0.02em' }}>
+            Journal
+          </div>
+        </div>
 
-      <div style={{ display: 'flex', gap: '5px', marginBottom: '14px', flexWrap: 'wrap' }}>
-        {[{ l: 'Great', c: '#ff4d00', a: true }, { l: 'Good', c: '#5aad7a' }, { l: 'Okay', c: '#4a90d9' }].map((m, i) => (
-          <div key={i} style={{
-            fontSize: '7px', padding: '5px 10px', borderRadius: '100px',
-            color: m.a ? m.c : 'rgba(255,255,255,0.3)',
-            backgroundColor: m.a ? `${m.c}22` : 'transparent',
-            border: `1px solid ${m.a ? m.c + '55' : 'rgba(255,255,255,0.08)'}`,
-            fontFamily: 'Inter, sans-serif',
-          }}>{m.l}</div>
-        ))}
-      </div>
+        <div style={{ display: 'flex', gap: T.s2, flexWrap: 'wrap' }}>
+          {[{ l: 'Great', c: '#ff4d00', a: true }, { l: 'Good', c: '#5aad7a' }, { l: 'Okay', c: '#4a90d9' }].map((m, i) => (
+            <div key={i} style={{
+              fontSize: '8px', padding: '6px 12px', borderRadius: '100px',
+              color: m.a ? m.c : T.textSecondary,
+              backgroundColor: m.a ? `${m.c}22` : 'transparent',
+              border: `1px solid ${m.a ? m.c + '55' : T.glassBorder}`,
+              fontFamily: 'Inter, sans-serif', fontWeight: 500,
+            }}>{m.l}</div>
+          ))}
+        </div>
 
-      <div style={{
-        backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
-        borderRadius: '10px', padding: '12px', fontSize: '8px', color: 'rgba(255,255,255,0.5)',
-        fontFamily: 'Inter, sans-serif', lineHeight: 1.7, marginBottom: '12px',
-      }}>
-        Today I worked through gym, deep work session, and evening reading. Felt productive and focused throughout most of the day...
-      </div>
+        <GlassCard style={{ padding: T.s3 }}>
+          <p style={{ fontSize: '9px', color: T.textSecondary, fontFamily: 'Inter, sans-serif', lineHeight: 1.7, margin: 0 }}>
+            Today I worked through gym, deep work session, and evening reading. Felt productive and focused throughout most of the day...
+          </p>
+        </GlassCard>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px' }}>
-        {Array.from({ length: 21 }, (_, i) => (
-          <div key={i} style={{
-            aspectRatio: '1', borderRadius: '4px',
-            backgroundColor: [1,4,6,9,12,15,18].includes(i) ? 'rgba(255,77,0,0.3)' : 'rgba(255,255,255,0.03)',
-          }} />
-        ))}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+          {Array.from({ length: 21 }, (_, i) => (
+            <div key={i} style={{
+              aspectRatio: '1', borderRadius: '4px',
+              backgroundColor: [1,4,6,9,12,15,18].includes(i) ? 'rgba(255,77,0,0.35)' : T.glassBg,
+              border: `1px solid ${[1,4,6,9,12,15,18].includes(i) ? 'rgba(255,77,0,0.3)' : T.glassBorder}`,
+            }} />
+          ))}
+        </div>
       </div>
+      <PhoneDock activeKey="journal" onSelect={onNavigate} />
     </div>
   )
 }
 
-function AnalyticsScreen() {
+function AnalyticsScreen({ onNavigate }) {
   const bars = [40, 65, 30, 80, 55, 90, 70]
   return (
-    <div style={{ padding: '20px 14px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-      <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.35)', fontFamily: 'Inter, sans-serif', marginBottom: '2px' }}>Insights</div>
-      <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '20px', fontWeight: 700, color: '#ff4d00', marginBottom: '16px' }}>Analytics</div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '14px' }}>
-        {[{ l: 'Avg Completion', v: '78%', c: '#ff4d00' }, { l: 'Focus Time', v: '5h 20m', c: '#4a90d9' }].map((s, i) => (
-          <div key={i} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '8px' }}>
-            <div style={{ fontSize: '6px', color: 'rgba(255,255,255,0.35)', fontFamily: 'Inter, sans-serif' }}>{s.l}</div>
-            <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '13px', fontWeight: 700, color: s.c }}>{s.v}</div>
+    <div style={{ height: '100%', position: 'relative' }}>
+      <div style={{ padding: '20px 16px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: T.s4 }}>
+        <div>
+          <div style={{ fontSize: '9px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', marginBottom: T.s1 }}>Insights</div>
+          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '26px', fontWeight: 700, color: T.textPrimary, letterSpacing: '-0.02em' }}>
+            Analytics
           </div>
-        ))}
-      </div>
+        </div>
 
-      <div style={{ fontSize: '7px', color: 'rgba(255,255,255,0.4)', fontFamily: 'Inter, sans-serif', marginBottom: '8px' }}>FOCUS HOURS</div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '5px', height: '70px' }}>
-        {bars.map((h, i) => (
-          <div key={i} style={{ flex: 1, height: `${h}%`, backgroundColor: '#ff4d00', borderRadius: '3px 3px 0 0' }} />
-        ))}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: T.s2 }}>
+          {[{ l: 'Avg Completion', v: '78%', c: '#ff4d00' }, { l: 'Focus Time', v: '5h 20m', c: '#4a90d9' }].map((s, i) => (
+            <GlassCard key={i} style={{ padding: T.s3 }}>
+              <div style={{ fontSize: '7px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: T.s1 }}>{s.l}</div>
+              <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '17px', fontWeight: 700, color: s.c }}>{s.v}</div>
+            </GlassCard>
+          ))}
+        </div>
+
+        <GlassCard style={{ padding: T.s3 }}>
+          <div style={{ fontSize: '8px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: T.s3 }}>
+            Focus hours
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: T.s2, height: '64px' }}>
+            {bars.map((h, i) => (
+              <div key={i} style={{
+                flex: 1, height: `${h}%`, borderRadius: '3px 3px 0 0',
+                background: 'linear-gradient(180deg, #ff4d00, #c9390a)',
+              }} />
+            ))}
+          </div>
+        </GlassCard>
       </div>
+      <PhoneDock activeKey="analytics" onSelect={onNavigate} />
     </div>
   )
 }
 
-// function SplashScreen() {
-//   const words = ['built', 'for', 'the', 'consistent.']
-// const finalWords = ['be', 'consistent.']
-//   const [visibleCount, setVisibleCount] = useState(0)
-//   const [isolated, setIsolated] = useState(false)
-
-//   useEffect(() => {
-//     const timers = []
-//     words.forEach((_, i) => {
-//       timers.push(setTimeout(() => setVisibleCount(i + 1), i * 450))
-//     })
-//     // After all words shown, wait 1s, then isolate "consistent."
-//     timers.push(setTimeout(() => setIsolated(true), words.length * 450 + 1000))
-//     return () => timers.forEach(clearTimeout)
-//   }, [])
-
-//   return (
-//     <div style={{
-//       height: '100%', display: 'flex', flexDirection: 'column',
-//       alignItems: 'center', justifyContent: 'center', padding: '0 20px',
-//       textAlign: 'center',
-//     }}>
-//       <div style={{
-//         fontFamily: 'Helvetica, sans-serif', fontWeight: 600,
-//         fontSize: '48px', lineHeight: 1.3,
-//         letterSpacing: '-0.02em', textTransform: 'lowercase',
-//       }}>
-//         {!isolated ? (
-//   words.map((word, i) => {
-//     const isLast = i === words.length - 1
-//     const shown = i < visibleCount
-//     return (
-//       <span key={i}>
-//         <span
-//           style={{
-//             display: 'inline-block',
-//             color: isLast ? '#ff4d00' : '#f0f0f0',
-//             opacity: shown ? 1 : 0,
-//             transform: shown ? 'translateY(0)' : 'translateY(8px)',
-//             transition: 'opacity 0.5s ease, transform 0.5s ease',
-//           }}
-//         >
-//           {word}
-//         </span>
-//         {i < words.length - 1 ? ' ' : ''}
-//         {i === 2 ? <br /> : ''}
-//       </span>
-//     )
-//   })
-// ) : (
-//   <span style={{ animation: 'fadeInScale 0.6s ease forwards' }}>
-//     <span style={{ color: '#f0f0f0' }}>{finalWords[0]}</span>{' '}
-//     <span style={{
-//       color: '#ff4d00',
-//       fontSize: '34px',
-//       textShadow: '0 0 24px rgba(255,77,0,0.6)',
-//     }}>
-//       {finalWords[1]}
-//     </span>
-//   </span>
-// )}
-//       </div>
-//     </div>
-//   )
-// }
 function SplashScreen() {
   const words = ['built', 'for', 'the', 'consistent.']
   const [visibleCount, setVisibleCount] = useState(0)
@@ -291,6 +339,57 @@ function SplashScreen() {
   )
 }
 
+const DOCK_ITEMS = [
+  { key: 'dashboard', label: 'Home', icon: 'grid', color: '#ff4d00' },
+  { key: 'planner', label: 'Plan', icon: 'sparkles', color: '#4a90d9' },
+  { key: 'calendar', label: 'Cal', icon: 'calendar', color: '#8b6bc7' },
+  { key: 'journal', label: 'Journal', icon: 'pen', color: '#5aad7a' },
+  { key: 'analytics', label: 'Stats', icon: 'chart', color: '#c9944a' },
+]
+
+function PhoneDock({ activeKey, onSelect }) {
+  return (
+    <div style={{
+      position: 'absolute', bottom: '10px', left: '8px', right: '8px',
+      display: 'flex', justifyContent: 'space-around', alignItems: 'center',
+      padding: '8px 8px',
+      borderRadius: '24px',
+      backgroundColor: 'rgba(255,255,255,0.08)',
+      backdropFilter: 'blur(20px)',
+      border: '1px solid rgba(255,255,255,0.12)',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+    }}>
+      {DOCK_ITEMS.map(item => {
+        const active = item.key === activeKey
+        const iconColor = active ? 'white' : 'rgba(255,255,255,0.55)'
+        return (
+          <button
+            key={item.key}
+            onClick={() => onSelect && onSelect(item.key)}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              background: 'none', border: 'none', padding: '4px', cursor: 'pointer',
+            }}
+          >
+            <div style={{
+              width: '30px', height: '30px', borderRadius: '9px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: active
+                ? `linear-gradient(145deg, ${item.color}, ${item.color}cc)`
+                : 'rgba(255,255,255,0.07)',
+              boxShadow: active ? `0 3px 10px ${item.color}66` : 'none',
+              transition: 'all 0.2s ease',
+              transform: active ? 'translateY(-2px) scale(1.05)' : 'translateY(0) scale(1)',
+            }}>
+              {Icons[item.icon](iconColor)}
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 const SCREENS = [
   { name: 'Splash', Component: SplashScreen, side: null },
   {
@@ -315,30 +414,54 @@ const SCREENS = [
   },
 ]
 
+const KEY_MAP = { dashboard: 'Dashboard', calendar: 'Calendar', journal: 'Journal', analytics: 'Analytics' }
+
 export default function Showcase() {
   const scrollContainerRef = useRef(null)
   const [activeIndex, setActiveIndex] = useState(0)
 
   useEffect(() => {
+    let raf = null
     const handleScroll = () => {
-      const el = scrollContainerRef.current
-      if (!el) return
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = null
+        const el = scrollContainerRef.current
+        if (!el) return
 
-      const rect = el.getBoundingClientRect()
-      const total = rect.height - window.innerHeight
-      const scrolled = -rect.top
-      const progress = Math.min(1, Math.max(0, scrolled / total))
+        const rect = el.getBoundingClientRect()
+        const total = rect.height - window.innerHeight
+        const scrolled = -rect.top
+        const progress = Math.min(1, Math.max(0, scrolled / total))
 
-      const index = Math.min(SCREENS.length - 1, Math.floor(progress * SCREENS.length))
-      setActiveIndex(index)
+        const index = Math.min(SCREENS.length - 1, Math.floor(progress * SCREENS.length))
+        setActiveIndex(prev => (prev === index ? prev : index))
+      })
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
     handleScroll()
-    return () => window.removeEventListener('scroll', handleScroll)
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
   }, [])
 
-  const { Component, name } = SCREENS[activeIndex]
+  const { Component } = SCREENS[activeIndex]
+
+  const handleDockNavigate = (key) => {
+    const targetName = KEY_MAP[key]
+    if (!targetName) return
+    const targetIndex = SCREENS.findIndex(s => s.name === targetName)
+    if (targetIndex === -1) return
+
+    const el = scrollContainerRef.current
+    if (!el) return
+    const total = el.getBoundingClientRect().height - window.innerHeight
+    const targetProgress = (targetIndex + 0.5) / SCREENS.length
+    const targetScroll = window.scrollY + el.getBoundingClientRect().top + targetProgress * total
+    window.scrollTo({ top: targetScroll, behavior: 'smooth' })
+  }
 
   return (
     <div style={{ backgroundColor: '#000' }}>
@@ -373,112 +496,109 @@ export default function Showcase() {
         </Link>
       </div>
 
-      
       {/* Scroll-controlled phone section */}
-<div ref={scrollContainerRef} style={{ position: 'relative', height: '400vh' }}>
-  <div style={{
-  position: 'sticky',
-  top: 0,
-  height: '100vh',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-}}>
-  {/* Glow */}
-  <div style={{
-    position: 'absolute', top: '15%', left: '50%', transform: 'translateX(-50%)',
-    width: '600px', height: '600px', borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(255,77,0,0.16) 0%, transparent 70%)',
-    filter: 'blur(70px)', zIndex: 0,
-  }} />
+      <div ref={scrollContainerRef} style={{ position: 'relative', height: '400vh' }}>
+        <div style={{
+          position: 'sticky',
+          top: 0,
+          height: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          {/* Glow */}
+          <div style={{
+            position: 'absolute', top: '15%', left: '50%', transform: 'translateX(-50%)',
+            width: '600px', height: '600px', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,77,0,0.16) 0%, transparent 70%)',
+            filter: 'blur(70px)', zIndex: 0,
+          }} />
 
-  {/* Outer row: left text | phone | right text */}
-  <div style={{
-    position: 'relative', zIndex: 1,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    gap: '64px', width: '100%', maxWidth: '1200px', padding: '0 48px',
-  }}>
+          {/* Outer row: left text | phone | right text */}
+          <div style={{
+            position: 'relative', zIndex: 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: '64px', width: '100%', maxWidth: '1200px', padding: '0 48px',
+          }}>
 
-    {/* Left text slot */}
-    <div style={{ flex: 1, textAlign: 'right' }}>
-      {SCREENS.map((s, i) => {
-        if (s.side !== 'left') return null
-        const active = i === activeIndex
-        return (
-          <div
-            key={s.name}
-            style={{
-              position: active ? 'static' : 'absolute',
-              opacity: active ? 1 : 0,
-              transform: active ? 'translateX(0)' : 'translateX(-20px)',
-              transition: 'opacity 0.6s ease, transform 0.6s ease',
-              pointerEvents: active ? 'auto' : 'none',
-            }}
-          >
-            <h3 style={{
-              fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '48px', fontWeight: 600,
-              color: '#f0f0f0', letterSpacing: '-0.02em', marginBottom: '12px',
+            {/* Left text slot */}
+            <div style={{ flex: 1, textAlign: 'right' }}>
+              {SCREENS.map((s, i) => {
+                if (s.side !== 'left') return null
+                const active = i === activeIndex
+                return (
+                  <div
+                    key={s.name}
+                    style={{
+                      position: active ? 'static' : 'absolute',
+                      opacity: active ? 1 : 0,
+                      transform: active ? 'translateX(0)' : 'translateX(-20px)',
+                      transition: 'opacity 0.6s ease, transform 0.6s ease',
+                      pointerEvents: active ? 'auto' : 'none',
+                    }}
+                  >
+                    <h3 style={{
+                      fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '48px', fontWeight: 600,
+                      color: '#f0f0f0', letterSpacing: '-0.02em', marginBottom: '12px',
+                    }}>
+                      {s.title}
+                    </h3>
+                    <p style={{
+                      fontFamily: 'Inter, sans-serif', fontSize: '18px', color: 'rgba(255,255,255,0.45)',
+                      lineHeight: 1.6, maxWidth: '280px', marginLeft: 'auto',
+                    }}>
+                      {s.desc}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Phone */}
+            <div style={{
+              filter: 'drop-shadow(rgba(0,0,0,0.5) 0px 30px 90px)',
+              flexShrink: 0,
             }}>
-              {s.title}
-            </h3>
-            <p style={{
-              fontFamily: 'Inter, sans-serif', fontSize: '18px', color: 'rgba(255,255,255,0.45)',
-              lineHeight: 1.6, maxWidth: '280px', marginLeft: 'auto',
-            }}>
-              {s.desc}
-            </p>
+              <Iphone width={370}>
+                <Component onNavigate={handleDockNavigate} />
+              </Iphone>
+            </div>
+
+            {/* Right text slot */}
+            <div style={{ flex: 1, textAlign: 'left' }}>
+              {SCREENS.map((s, i) => {
+                if (s.side !== 'right') return null
+                const active = i === activeIndex
+                return (
+                  <div
+                    key={s.name}
+                    style={{
+                      position: active ? 'static' : 'absolute',
+                      opacity: active ? 1 : 0,
+                      transform: active ? 'translateX(0)' : 'translateX(20px)',
+                      transition: 'opacity 0.6s ease, transform 0.6s ease',
+                      pointerEvents: active ? 'auto' : 'none',
+                    }}
+                  >
+                    <h3 style={{
+                      fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '48px', fontWeight: 600,
+                      color: '#f0f0f0', letterSpacing: '-0.02em', marginBottom: '12px',
+                    }}>
+                      {s.title}
+                    </h3>
+                    <p style={{
+                      fontFamily: 'Inter, sans-serif', fontSize: '18px', color: 'rgba(255,255,255,0.45)',
+                      lineHeight: 1.6, maxWidth: '280px',
+                    }}>
+                      {s.desc}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        )
-      })}
-    </div>
-
-    {/* Phone */}
-    <div style={{
-      filter: 'drop-shadow(rgba(0,0,0,0.5) 0px 30px 90px)',
-      flexShrink: 0,
-    }}>
-      <Iphone width={370}>
-        <Component />
-      </Iphone>
-    </div>
-
-    {/* Right text slot */}
-    <div style={{ flex: 1, textAlign: 'left' }}>
-      {SCREENS.map((s, i) => {
-        if (s.side !== 'right') return null
-        const active = i === activeIndex
-        return (
-          <div
-            key={s.name}
-            style={{
-              position: active ? 'static' : 'absolute',
-              opacity: active ? 1 : 0,
-              transform: active ? 'translateX(0)' : 'translateX(20px)',
-              transition: 'opacity 0.6s ease, transform 0.6s ease',
-              pointerEvents: active ? 'auto' : 'none',
-            }}
-          >
-            <h3 style={{
-              fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '48px', fontWeight: 600,
-              color: '#f0f0f0', letterSpacing: '-0.02em', marginBottom: '12px',
-            }}>
-              {s.title}
-            </h3>
-            <p style={{
-              fontFamily: 'Inter, sans-serif', fontSize: '18px', color: 'rgba(255,255,255,0.45)',
-              lineHeight: 1.6, maxWidth: '280px',
-            }}>
-              {s.desc}
-            </p>
-          </div>
-        )
-      })}
-    </div>
-  </div>
-</div>
+        </div>
       </div>
-
-      
 
       <style>{`
         @keyframes bounce {
