@@ -71,54 +71,158 @@ const Icons = {
 }
 
 // ── Mini screen recreations ─────────────────────────────────
+const S = { xs: 6, sm: 10, md: 16, lg: 22, xl: 30 }
+
 function DashboardScreen({ onNavigate }) {
+  const streakDays = Array.from({ length: 56 }, () => {
+    const r = Math.random()
+    return r > 0.55 ? 1 : 0
+  })
+
+  const categories = [
+    { l: 'Work', delta: '+12%', up: true },
+    { l: 'Health', delta: '+4%', up: true },
+    { l: 'Study', delta: '-8%', up: false },
+    { l: 'Personal', delta: '+20%', up: true },
+  ]
+
+  const tasks = [
+    { l: 'Deep work session', tag: 'Work', time: '2h 15m', c: '#4a90d9' },
+    { l: 'Morning gym', tag: 'Health', time: '45m', c: '#ff4d00' },
+    { l: 'Read 20 pages', tag: 'Study', time: '20m', c: '#5aad7a' },
+    { l: 'Plan tomorrow', tag: 'Personal', time: '10m', c: '#8b6bc7' },
+  ]
+
   return (
-    <div style={{ height: '100%', position: 'relative' }}>
-      <div style={{ padding: '20px 16px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: T.s4 }}>
-        <div>
-          <div style={{ fontSize: '9px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', marginBottom: T.s1 }}>Saturday, June 20</div>
-          <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '26px', fontWeight: 700, color: T.textPrimary, letterSpacing: '-0.02em' }}>
-            Dashboard
-          </div>
-        </div>
+    <div style={{ height: '100%', position: 'relative', backgroundColor: '#0a0a0a' }}>
+      <div style={{
+        padding: '20px 18px 16px',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}>
 
-        <GlassCard style={{ padding: T.s4, display: 'flex', alignItems: 'center', gap: T.s4 }}>
-          <svg width="58" height="58" viewBox="0 0 64 64" style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
-            <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,77,0,0.15)" strokeWidth="7" />
-            <circle cx="32" cy="32" r="26" fill="none" stroke="#ff4d00" strokeWidth="7" strokeDasharray="163" strokeDashoffset="50" strokeLinecap="round" />
-            <circle cx="32" cy="32" r="18" fill="none" stroke="rgba(90,173,122,0.15)" strokeWidth="6" />
-            <circle cx="32" cy="32" r="18" fill="none" stroke="#5aad7a" strokeWidth="6" strokeDasharray="113" strokeDashoffset="30" strokeLinecap="round" />
-          </svg>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: T.s1 }}>
-            <div>
-              <span style={{ fontSize: '15px', fontWeight: 700, color: '#ff4d00', fontFamily: 'Bricolage Grotesque, sans-serif' }}>70%</span>
-              <span style={{ fontSize: '9px', color: T.textSecondary, fontFamily: 'Inter, sans-serif', marginLeft: '4px' }}>completion</span>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: S.sm }}>
+            <div style={{
+              width: '38px', height: '38px', borderRadius: '50%',
+              background: 'linear-gradient(135deg, #ff4d00, #c9390a)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '14px', fontWeight: 700, color: 'white', fontFamily: 'Bricolage Grotesque, sans-serif',
+            }}>
+              A
             </div>
             <div>
-              <span style={{ fontSize: '15px', fontWeight: 700, color: '#5aad7a', fontFamily: 'Bricolage Grotesque, sans-serif' }}>65%</span>
-              <span style={{ fontSize: '9px', color: T.textSecondary, fontFamily: 'Inter, sans-serif', marginLeft: '4px' }}>tasks</span>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: T.textPrimary, fontFamily: 'Inter, sans-serif' }}>Avantika</div>
+              <div style={{ fontSize: '11px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', marginTop: '2px' }}>Sat, June 20</div>
             </div>
           </div>
-        </GlassCard>
-
-        <div>
-          <div style={{ fontSize: '9px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: T.s2 }}>
-            Today's schedule
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: T.s2 }}>
-            {[
-              { t: '06:00', l: 'Wake up', c: '#c9944a' },
-              { t: '09:00', l: 'Deep work', c: '#4a90d9' },
-              { t: '13:00', l: 'Gym', c: '#ff4d00' },
-            ].map((b, i) => (
-              <GlassCard key={i} style={{ display: 'flex', alignItems: 'center', gap: T.s2, padding: '8px 10px' }}>
-                <span style={{ fontSize: '8px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', minWidth: '26px' }}>{b.t}</span>
-                <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: b.c, flexShrink: 0 }} />
-                <span style={{ fontSize: '9px', color: T.textPrimary, fontFamily: 'Inter, sans-serif' }}>{b.l}</span>
-              </GlassCard>
+          <div style={{ display: 'flex', gap: S.xs }}>
+            {['bell', 'search'].map(icon => (
+              <div key={icon} style={{
+                width: '34px', height: '34px', borderRadius: '10px',
+                backgroundColor: 'rgba(255,255,255,0.06)', border: `1px solid ${T.glassBorder}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {icon === 'bell' ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2C9.5 2 7.5 4 7.5 6.5V11L5.5 15H18.5L16.5 11V6.5C16.5 4 14.5 2 12 2Z" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinejoin="round"/><path d="M9.5 18.5C9.5 19.9 10.6 21 12 21C13.4 21 14.5 19.9 14.5 18.5" stroke="rgba(255,255,255,0.6)" strokeWidth="2"/></svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="rgba(255,255,255,0.6)" strokeWidth="2"/><path d="M20 20L16.5 16.5" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round"/></svg>
+                )}
+              </div>
             ))}
           </div>
         </div>
+
+        {/* Stat triplet */}
+        <section style={{ marginTop: '20px', flexShrink: 0 }}>
+          <GlassCard style={{ padding: '18px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: S.sm }}>
+              {[
+                { l: 'Today', v: '70%', d: '+5%', up: true },
+                { l: 'Week', v: '64%', d: '-2%', up: false },
+                { l: 'Streak', v: '12d', d: '+1', up: true },
+              ].map((s, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ fontSize: '11px', color: T.textTertiary, fontFamily: 'Inter, sans-serif' }}>{s.l}</div>
+                  <div style={{ fontSize: '20px', fontWeight: 700, color: T.textPrimary, fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.01em' }}>{s.v}</div>
+                  <div style={{ fontSize: '11px', fontFamily: 'Inter, sans-serif', color: s.up ? '#5aad7a' : '#e25c4a' }}>
+                    {s.up ? '↑' : '↓'} {s.d}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+        </section>
+
+        {/* Heatmap */}
+        <section style={{ marginTop: '20px', flexShrink: 0 }}>
+          <GlassCard style={{ padding: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: S.md }}>
+              <span style={{ fontSize: '13px', color: T.textSecondary, fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>Activity heatmap</span>
+              <span style={{ fontSize: '11px', color: T.textTertiary, fontFamily: 'Inter, sans-serif' }}>8 weeks</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gridAutoFlow: 'column', gap: '5px' }}>
+              {streakDays.map((on, i) => (
+                <div key={i} style={{
+                  width: '12px', height: '12px', borderRadius: '3px',
+                  backgroundColor: on ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.06)',
+                }} />
+              ))}
+            </div>
+          </GlassCard>
+        </section>
+
+        {/* Category pills 2x2 */}
+        <section style={{ marginTop: '20px', flexShrink: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {categories.map((c, i) => (
+              <GlassCard key={i} style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', color: T.textPrimary, fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>{c.l}</span>
+                <span style={{ fontSize: '11px', fontFamily: 'Inter, sans-serif', color: c.up ? '#5aad7a' : '#e25c4a' }}>{c.delta}</span>
+              </GlassCard>
+            ))}
+          </div>
+        </section>
+
+        {/* Tasks — fills remaining space */}
+        <section style={{
+          marginTop: '24px',
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: S.md, flexShrink: 0 }}>
+            <span style={{ fontSize: '13px', color: T.textSecondary, fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>Tasks</span>
+            <span style={{ fontSize: '11px', color: T.textTertiary, fontFamily: 'Inter, sans-serif' }}>Sort by time ↓</span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '24px' }}>
+            {tasks.map((task, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: S.md,
+                padding: '14px 0',
+                borderBottom: i < tasks.length - 1 ? `1px solid ${T.glassBorder}` : 'none',
+              }}>
+                <div style={{
+                  width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
+                  backgroundColor: `${task.c}22`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: task.c }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: T.textPrimary, fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.l}</div>
+                  <div style={{ fontSize: '10px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', marginTop: '2px' }}>{task.tag}</div>
+                </div>
+                <span style={{ fontSize: '11px', color: T.textSecondary, fontFamily: 'Inter, sans-serif', flexShrink: 0 }}>{task.time}</span>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
       <PhoneDock activeKey="dashboard" onSelect={onNavigate} />
     </div>
@@ -350,39 +454,30 @@ const DOCK_ITEMS = [
 function PhoneDock({ activeKey, onSelect }) {
   return (
     <div style={{
-      position: 'absolute', bottom: '10px', left: '8px', right: '8px',
+      position: 'absolute', bottom: 0, left: 0, right: 0,
       display: 'flex', justifyContent: 'space-around', alignItems: 'center',
-      padding: '8px 8px',
-      borderRadius: '24px',
-      backgroundColor: 'rgba(255,255,255,0.08)',
+      padding: '10px 8px 16px',
+      backgroundColor: 'rgba(8,8,8,0.92)',
       backdropFilter: 'blur(20px)',
-      border: '1px solid rgba(255,255,255,0.12)',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+      borderTop: '1px solid rgba(255,255,255,0.07)',
     }}>
       {DOCK_ITEMS.map(item => {
         const active = item.key === activeKey
-        const iconColor = active ? 'white' : 'rgba(255,255,255,0.55)'
+        const iconColor = active ? '#ff4d00' : 'rgba(255,255,255,0.4)'
         return (
           <button
             key={item.key}
             onClick={() => onSelect && onSelect(item.key)}
             style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
               background: 'none', border: 'none', padding: '4px', cursor: 'pointer',
             }}
           >
+            {Icons[item.icon](iconColor)}
             <div style={{
-              width: '30px', height: '30px', borderRadius: '9px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: active
-                ? `linear-gradient(145deg, ${item.color}, ${item.color}cc)`
-                : 'rgba(255,255,255,0.07)',
-              boxShadow: active ? `0 3px 10px ${item.color}66` : 'none',
-              transition: 'all 0.2s ease',
-              transform: active ? 'translateY(-2px) scale(1.05)' : 'translateY(0) scale(1)',
-            }}>
-              {Icons[item.icon](iconColor)}
-            </div>
+              width: '3px', height: '3px', borderRadius: '50%',
+              backgroundColor: active ? '#ff4d00' : 'transparent',
+            }} />
           </button>
         )
       })}
