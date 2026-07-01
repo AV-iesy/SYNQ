@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  LineChart, Line, BarChart, Bar, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import AppLayout from '../components/common/AppLayout'
@@ -167,6 +167,18 @@ export default function Analytics() {
     .map(([mood, count]) => ({ name: mood, value: count, color: MOOD_COLORS[mood] }))
     .sort((a, b) => MOOD_SCORES[b.name] - MOOD_SCORES[a.name])
   const moodTotal = moodDistribution.reduce((s, x) => s + x.value, 0)
+  const moodChartData = ['great', 'good', 'okay', 'low', 'rough']
+    .map(mood => {
+      const value = moodCounts[mood] || 0
+      return {
+        name: mood,
+        value,
+        pct: moodTotal === 0 ? 0 : Math.round((value / moodTotal) * 100),
+        color: MOOD_COLORS[mood],
+      }
+    })
+    .filter(m => m.value > 0)
+  const dominantMood = moodChartData[0]
 
   let streak = 0
   for (let i = trendData.length - 1; i >= 0; i--) {
@@ -340,29 +352,90 @@ export default function Analytics() {
             </div>
           </div>
 
-          {/* Mood distribution (bottom-right, like "Top Product Sales" table) */}
+          {/* Mood distribution */}
           <div style={{ ...card(), display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            {sectionLabel('Mood Breakdown')}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '10px' }}>
+              {sectionLabel('Mood Breakdown')}
+              {dominantMood && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '5px 9px', borderRadius: '999px',
+                  backgroundColor: `${dominantMood.color}18`,
+                  border: `1px solid ${dominantMood.color}33`,
+                  flexShrink: 0,
+                }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: dominantMood.color }} />
+                  <span style={{ fontSize: '11px', color: dominantMood.color, fontFamily: 'Inter, sans-serif', fontWeight: 600, textTransform: 'capitalize' }}>
+                    {dominantMood.name}
+                  </span>
+                </div>
+              )}
+            </div>
             {moodDistribution.length === 0 ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: subtle, fontSize: '12px', fontFamily: 'Inter, sans-serif' }}>
                 No mood data yet
               </div>
             ) : (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center', overflowY: 'auto' }}>
-                {moodDistribution.map(m => {
-                  const pct = Math.round((m.value / moodTotal) * 100)
-                  return (
-                    <div key={m.name}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '11px', color: text, fontFamily: 'Inter, sans-serif', textTransform: 'capitalize' }}>{m.name}</span>
-                        <span style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{m.value}d · {pct}%</span>
+              <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateRows: '1fr auto', gap: '10px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={moodChartData}
+                    layout="vertical"
+                    margin={{ top: 2, right: 28, bottom: 0, left: 2 }}
+                    barCategoryGap="24%"
+                  >
+                    <CartesianGrid stroke={gridColor} horizontal={false} strokeDasharray="3 3" />
+                    <XAxis
+                      type="number"
+                      domain={[0, 100]}
+                      stroke={subtle}
+                      tick={{ fontSize: 10, fontFamily: 'Inter, sans-serif' }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={v => `${v}%`}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={48}
+                      stroke={subtle}
+                      tick={{ fontSize: 11, fontFamily: 'Inter, sans-serif', textTransform: 'capitalize' }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={v => v.charAt(0).toUpperCase() + v.slice(1)}
+                    />
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      labelStyle={{ color: text, textTransform: 'capitalize' }}
+                      cursor={{ fill: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }}
+                      formatter={(value, name, props) => [`${props.payload.value} day${props.payload.value === 1 ? '' : 's'} · ${value}%`, 'Mood']}
+                    />
+                    <Bar dataKey="pct" radius={[0, 8, 8, 0]} barSize={16}>
+                      {moodChartData.map(m => <Cell key={m.name} fill={m.color} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${Math.min(moodChartData.length, 5)}, minmax(0, 1fr))`,
+                  gap: '6px',
+                }}>
+                  {moodChartData.map(m => (
+                    <div key={m.name} style={{
+                      padding: '7px 8px',
+                      borderRadius: '10px',
+                      backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+                      border: `1px solid ${faint}`,
+                    }}>
+                      <div style={{ fontSize: '14px', color: m.color, fontFamily: 'Bricolage Grotesque, sans-serif', fontWeight: 700, lineHeight: 1 }}>
+                        {m.value}
                       </div>
-                      <div style={{ height: '5px', backgroundColor: faint, borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, backgroundColor: m.color, borderRadius: '3px', transition: 'width 0.4s ease' }} />
+                      <div style={{ fontSize: '9px', color: subtle, fontFamily: 'Inter, sans-serif', textTransform: 'capitalize', marginTop: '3px' }}>
+                        {m.name}
                       </div>
                     </div>
-                  )
-                })}
+                  ))}
+                </div>
               </div>
             )}
           </div>
