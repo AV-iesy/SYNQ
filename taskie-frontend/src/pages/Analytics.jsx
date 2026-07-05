@@ -40,35 +40,73 @@ function getDateRange(days) {
 
 // ── Paywall Component ─────────────────────────────────────────
 function Paywall({ onUnlock }) {
+  const { user } = useAuth()
   const { theme } = useTheme()
   const dark = theme === 'dark'
-  const { user, login } = useAuth()
-  const [selectedPlan, setSelectedPlan] = useState('monthly')
-  const [loading, setLoading] = useState(false)
+  const [billedYearly, setBilledYearly] = useState(false)
+  const [loading, setLoading] = useState(null)
   const [error, setError] = useState('')
+  const [glarePos, setGlarePos] = useState({})
 
   const text = dark ? '#f0f0f0' : '#0a0a0a'
-  const subtle = dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'
-  const faint = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
-  const cardBg = dark ? '#161616' : '#ffffff'
+  const subtle = dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)'
+  const cardBg = dark ? '#111111' : '#ffffff'
+  const cardBorder = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
 
   const plans = [
     {
+      key: 'free',
+      label: 'Free',
+      badge: null,
+      desc: 'Good for getting started.',
+      price: '₹0',
+      suffix: '/mo',
+      featured: false,
+      cta: 'Current plan',
+      disabled: true,
+      features: [
+        { text: 'Dashboard & streaks', available: true },
+        { text: 'AI schedule generation', available: true },
+        { text: 'Journal entries', available: true },
+        { text: 'Analytics', available: false },
+        { text: 'Mood insights', available: false },
+      ],
+    },
+    {
       key: 'monthly',
-      label: 'Monthly',
-      price: '₹199',
-      period: '/month',
-      desc: 'Full access, cancel anytime',
-      features: ['Complete Analytics dashboard', 'Mood vs productivity insights', 'Focus time trends', 'Weekly/monthly reports'],
+      label: 'Pro',
+      badge: 'Popular',
+      desc: 'For people who want more.',
+      price: billedYearly ? '₹149' : '₹199',
+      suffix: '/mo',
+      featured: true,
+      cta: 'Get started',
+      disabled: false,
+      features: [
+        { text: 'Everything in Free', available: true },
+        { text: 'Complete Analytics', available: true },
+        { text: 'Mood vs productivity', available: true },
+        { text: 'Focus time trends', available: true },
+        { text: 'Unlimited history', available: true },
+      ],
     },
     {
       key: 'lifetime',
       label: 'Lifetime',
-      price: '₹999',
-      period: 'one-time',
-      desc: 'Pay once, own it forever',
       badge: 'Best value',
-      features: ['Everything in Monthly', 'All future features', 'Priority support', 'Never pay again'],
+      desc: 'Pay once, use forever.',
+      price: '₹999',
+      suffix: '',
+      featured: false,
+      cta: 'Get started',
+      disabled: false,
+      features: [
+        { text: 'Everything in Pro', available: true },
+        { text: 'All future features', available: true },
+        { text: 'Priority support', available: true },
+        { text: 'Early access', available: true },
+        { text: 'Never pay again', available: true },
+      ],
     },
   ]
 
@@ -82,26 +120,22 @@ function Paywall({ onUnlock }) {
       document.body.appendChild(script)
     })
 
-  const handlePayment = async () => {
-    setLoading(true)
+  const handlePayment = async (planKey) => {
+    if (planKey === 'free') return
+    setLoading(planKey)
     setError('')
     try {
       const loaded = await loadRazorpay()
-      if (!loaded) throw new Error('Razorpay failed to load. Check your connection.')
-
-      const order = await paymentApi.createOrder(selectedPlan)
-
+      if (!loaded) throw new Error('Razorpay failed to load.')
+      const order = await paymentApi.createOrder(planKey)
       const options = {
         key: order.keyId,
         amount: order.amount,
         currency: order.currency,
         name: 'SYNQ',
-        description: selectedPlan === 'lifetime' ? 'SYNQ Lifetime Access' : 'SYNQ Monthly Premium',
+        description: planKey === 'lifetime' ? 'SYNQ Lifetime Access' : 'SYNQ Pro Monthly',
         order_id: order.orderId,
-        prefill: {
-          name: user?.name || '',
-          email: user?.email || '',
-        },
+        prefill: { name: user?.name || '', email: user?.email || '' },
         theme: { color: '#ff4d00' },
         handler: async (response) => {
           try {
@@ -109,182 +143,303 @@ function Paywall({ onUnlock }) {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
-              plan: selectedPlan,
+              plan: planKey,
             })
-            if (result.success) {
-              onUnlock(result.user)
-            }
-          } catch (err) {
+            if (result.success) onUnlock(result.user)
+          } catch {
             setError('Payment verification failed. Contact support.')
           }
         },
-        modal: {
-          ondismiss: () => setLoading(false),
-        },
+        modal: { ondismiss: () => setLoading(null) },
       }
-
       const rzp = new window.Razorpay(options)
       rzp.on('payment.failed', () => {
         setError('Payment failed. Please try again.')
-        setLoading(false)
+        setLoading(null)
       })
       rzp.open()
     } catch (err) {
       setError(err.message || 'Something went wrong.')
-      setLoading(false)
+      setLoading(null)
     }
+  }
+
+  const handleMouseMove = (e, key) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width) * 100
+    const y = ((e.clientY - rect.top) / rect.height) * 100
+    setGlarePos(prev => ({ ...prev, [key]: { x, y } }))
+  }
+
+  const handleMouseLeave = (key) => {
+    setGlarePos(prev => ({ ...prev, [key]: null }))
   }
 
   return (
     <div style={{
-      height: 'calc(100vh - 80px)',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      padding: '0 24px',
+      minHeight: 'calc(100vh - 80px)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '40px 24px',
     }}>
-      {/* Lock icon */}
+
+      {/* Header */}
+      <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+  <h1
+    style={{
+      fontFamily: 'Bricolage Grotesque, sans-serif',
+      fontSize: 'clamp(28px, 4vw, 40px)',
+      fontWeight: 700,
+      color: text,
+      letterSpacing: '-0.03em',
+      marginBottom: '12px',
+      lineHeight: 1.1,
+    }}
+  >
+    Simple, transparent pricing
+  </h1>
+
+  <p
+    style={{
+      fontSize: '15px',
+      color: subtle,
+      fontFamily: 'Inter, sans-serif',
+      maxWidth: '420px',
+      lineHeight: 1.6,
+      margin: '0 auto',
+    }}
+  >
+    Start free. Upgrade when you want deeper insights into your day.
+  </p>
+</div>
+
+      {/* Cards */}
       <div style={{
-        width: '64px', height: '64px', borderRadius: '20px',
-        background: 'linear-gradient(135deg, rgba(255,77,0,0.2), rgba(255,77,0,0.05))',
-        border: '1px solid rgba(255,77,0,0.3)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        marginBottom: '24px',
-        boxShadow: '0 0 40px rgba(255,77,0,0.15)',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 340px)',
+        gap: '20px',
+        alignItems: 'center',
       }}>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-          <rect x="5" y="11" width="14" height="11" rx="2" stroke="#ff4d00" strokeWidth="2" fill="rgba(255,77,0,0.1)" />
-          <path d="M8 11V7C8 4.79 9.79 3 12 3C14.21 3 16 4.79 16 7V11" stroke="#ff4d00" strokeWidth="2" strokeLinecap="round" />
-          <circle cx="12" cy="16" r="1.5" fill="#ff4d00" />
-        </svg>
+        {plans.map((plan) => {
+          const glare = glarePos[plan.key]
+          return (
+            <div
+              key={plan.key}
+              onMouseMove={(e) => handleMouseMove(e, plan.key)}
+              onMouseLeave={() => handleMouseLeave(plan.key)}
+              style={{
+                position: 'relative',
+                borderRadius: '16px',
+                backgroundColor: cardBg,
+                border: `1px solid ${plan.featured ? 'rgba(255,255,255,0.14)' : cardBorder}`,
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0px',
+                overflow: 'hidden',
+                transform: plan.featured ? 'scale(1.04)' : 'scale(1)',
+                boxShadow: plan.featured
+                  ? '0 0 0 1px rgba(255,255,255,0.06), 0 24px 60px rgba(0,0,0,0.5)'
+                  : '0 4px 20px rgba(0,0,0,0.2)',
+                transition: 'box-shadow 0.2s, transform 0.2s',
+              }}
+            >
+              {/* Glare overlay */}
+              {glare && (
+                <div style={{
+                  position: 'absolute', inset: 0, borderRadius: '16px',
+                  background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255,255,255,0.08) 0%, transparent 60%)`,
+                  pointerEvents: 'none', zIndex: 2,
+                  transition: 'opacity 0.3s',
+                }} />
+              )}
+
+              {/* Card content */}
+              <div style={{ position: 'relative', zIndex: 1 }}>
+
+                {/* Header row */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <div style={{
+                    fontFamily: 'Bricolage Grotesque, sans-serif',
+                    fontSize: '20px', fontWeight: 600, color: text,
+                    letterSpacing: '-0.02em',
+                  }}>
+                    {plan.label}
+                  </div>
+                  {plan.badge && (
+                    <div style={{
+                      padding: '3px 10px', borderRadius: '100px',
+                      backgroundColor: plan.featured ? '#ff4d00' : 'rgba(255,255,255,0.08)',
+                      border: `1px solid ${plan.featured ? 'transparent' : 'rgba(255,255,255,0.1)'}`,
+                      fontSize: '11px', fontWeight: 600,
+                      color: plan.featured ? 'white' : subtle,
+                      fontFamily: 'Inter, sans-serif',
+                    }}>
+                      {plan.badge}
+                    </div>
+                  )}
+                </div>
+
+                {/* Description */}
+                <div style={{
+                  fontSize: '13px', color: subtle,
+                  fontFamily: 'Inter, sans-serif', marginBottom: '16px',
+                }}>
+                  {plan.desc}
+                </div>
+
+                {/* Price */}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', marginBottom: '20px' }}>
+                  <span style={{
+                    fontFamily: 'Bricolage Grotesque, sans-serif',
+                    fontSize: '40px', fontWeight: 600, color: text,
+                    letterSpacing: '-0.03em', lineHeight: 1,
+                  }}>
+                    {plan.price}
+                  </span>
+                  {plan.suffix && (
+                    <span style={{ fontSize: '14px', color: subtle, fontFamily: 'Inter, sans-serif' }}>
+                      {plan.suffix}
+                    </span>
+                  )}
+                </div>
+
+                {/* Divider */}
+                <div style={{ height: '1px', backgroundColor: dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)', marginBottom: '20px' }} />
+
+                {/* Features */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                  {plan.features.map((f, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {f.available ? (
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ flexShrink: 0 }}>
+                          <path d="M12.5 3.5L6 10L2.5 6.5" stroke={text} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      ) : (
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ flexShrink: 0 }}>
+                          <circle cx="7.5" cy="7.5" r="1.5" fill={subtle} opacity="0.4" />
+                        </svg>
+                      )}
+                      <span style={{
+                        fontSize: '13px',
+                        color: f.available ? text : subtle,
+                        fontFamily: 'Inter, sans-serif',
+                        opacity: f.available ? 0.85 : 0.5,
+                      }}>
+                        {f.text}
+                        {!f.available && (
+                          <span style={{ marginLeft: '6px', fontSize: '11px', color: subtle, opacity: 0.6 }}>
+                            locked
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* CTA Button */}
+                <button
+                  onClick={() => handlePayment(plan.key)}
+                  disabled={plan.disabled || loading === plan.key}
+                  style={{
+                    width: '100%', padding: '12px',
+                    borderRadius: '8px', border: 'none',
+                    fontSize: '14px', fontWeight: 600,
+                    fontFamily: 'Inter, sans-serif',
+                    cursor: plan.disabled ? 'default' : 'pointer',
+                    backgroundColor: plan.featured
+                      ? '#ff4d00'
+                      : dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                    color: plan.featured ? 'white' : text,
+                    opacity: plan.disabled ? 0.4 : 1,
+                    transition: 'all 0.15s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  }}
+                  onMouseEnter={e => {
+                    if (!plan.disabled && plan.featured) e.currentTarget.style.backgroundColor = '#e04400'
+                    if (!plan.disabled && !plan.featured) e.currentTarget.style.backgroundColor = dark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.1)'
+                  }}
+                  onMouseLeave={e => {
+                    if (plan.featured) e.currentTarget.style.backgroundColor = '#ff4d00'
+                    else e.currentTarget.style.backgroundColor = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
+                  }}
+                >
+                  {loading === plan.key ? (
+                    <>
+                      <div style={{
+                        width: '14px', height: '14px',
+                        border: `2px solid ${plan.featured ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'}`,
+                        borderTop: `2px solid ${plan.featured ? 'white' : text}`,
+                        borderRadius: '50%',
+                        animation: 'spin 0.8s linear infinite',
+                      }} />
+                      Processing...
+                    </>
+                  ) : plan.cta}
+                </button>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
-      {/* Headline */}
-      <h1 style={{
-        fontFamily: 'Bricolage Grotesque, sans-serif',
-        fontSize: '28px', fontWeight: 700, color: text,
-        letterSpacing: '-0.5px', marginBottom: '8px', textAlign: 'center',
-      }}>
-        Unlock <span style={{ color: '#ff4d00' }}>Analytics</span>
-      </h1>
-      <p style={{
-        fontSize: '14px', color: subtle, fontFamily: 'Inter, sans-serif',
-        textAlign: 'center', maxWidth: '380px', lineHeight: 1.6, marginBottom: '36px',
-      }}>
-        See how your mood, focus time, and completion rate connect. Know your patterns, own your day.
-      </p>
-
-      {/* Plan toggle */}
-      <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '520px', marginBottom: '24px' }}>
-        {plans.map(plan => (
-          <div
-            key={plan.key}
-            onClick={() => setSelectedPlan(plan.key)}
-            style={{
-              flex: 1, padding: '20px', borderRadius: '16px', cursor: 'pointer',
-              backgroundColor: cardBg,
-              border: `1.5px solid ${selectedPlan === plan.key ? '#ff4d00' : faint}`,
-              boxShadow: selectedPlan === plan.key ? '0 0 0 3px rgba(255,77,0,0.1)' : 'none',
-              transition: 'all 0.2s',
-              position: 'relative',
-            }}
-          >
-            {plan.badge && (
-              <div style={{
-                position: 'absolute', top: '-10px', right: '14px',
-                backgroundColor: '#ff4d00', color: 'white',
-                fontSize: '10px', fontWeight: 600, fontFamily: 'Inter, sans-serif',
-                padding: '3px 10px', borderRadius: '100px',
-              }}>
-                {plan.badge}
-              </div>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <div style={{
-                width: '16px', height: '16px', borderRadius: '50%',
-                border: `2px solid ${selectedPlan === plan.key ? '#ff4d00' : faint}`,
-                backgroundColor: selectedPlan === plan.key ? '#ff4d00' : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                {selectedPlan === plan.key && (
-                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'white' }} />
-                )}
-              </div>
-              <span style={{ fontSize: '14px', fontWeight: 600, color: text, fontFamily: 'Inter, sans-serif' }}>
-                {plan.label}
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '24px', fontWeight: 700, color: '#ff4d00', fontFamily: 'Bricolage Grotesque, sans-serif' }}>
-                {plan.price}
-              </span>
-              <span style={{ fontSize: '12px', color: subtle, fontFamily: 'Inter, sans-serif' }}>
-                {plan.period}
-              </span>
-            </div>
-            <div style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif', marginBottom: '12px' }}>
-              {plan.desc}
-            </div>
-            {plan.features.map((f, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                  <circle cx="6" cy="6" r="5" fill="rgba(255,77,0,0.15)" stroke="rgba(255,77,0,0.3)" />
-                  <path d="M3.5 6L5 7.5L8.5 4" stroke="#ff4d00" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{f}</span>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-
+      {/* Error */}
       {error && (
         <div style={{
-          padding: '10px 16px', borderRadius: '10px', marginBottom: '16px',
-          backgroundColor: 'rgba(255,77,0,0.1)', border: '1px solid rgba(255,77,0,0.3)',
+          marginTop: '20px', padding: '10px 18px', borderRadius: '10px',
+          backgroundColor: 'rgba(255,77,0,0.1)', border: '1px solid rgba(255,77,0,0.25)',
           fontSize: '13px', color: '#ff4d00', fontFamily: 'Inter, sans-serif',
-          maxWidth: '520px', width: '100%',
         }}>
           {error}
         </div>
       )}
 
-      {/* CTA */}
-      <button
-        onClick={handlePayment}
-        disabled={loading}
-        style={{
-          width: '100%', maxWidth: '520px',
-          padding: '14px', borderRadius: '12px',
-          backgroundColor: loading ? 'rgba(255,77,0,0.5)' : '#ff4d00',
-          color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
-          fontSize: '15px', fontFamily: 'Bricolage Grotesque, sans-serif', fontWeight: 700,
-          transition: 'all 0.2s',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-        }}
-      >
-        {loading ? (
-          <>
-            <div style={{
-              width: '16px', height: '16px',
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderTop: '2px solid white',
-              borderRadius: '50%',
-              animation: 'spin 0.8s linear infinite',
-            }} />
-            Processing...
-          </>
-        ) : (
-          `Unlock with ${selectedPlan === 'lifetime' ? '₹999' : '₹199/mo'} →`
-        )}
-      </button>
-
-      <p style={{
-        fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif',
-        marginTop: '12px', textAlign: 'center',
+      {/* Billed Yearly toggle */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '12px',
+        marginTop: '36px',
       }}>
+        <button
+          onClick={() => setBilledYearly(!billedYearly)}
+          style={{
+            width: '44px', height: '24px', borderRadius: '100px',
+            backgroundColor: billedYearly ? '#ff4d00' : 'rgba(255,255,255,0.15)',
+            border: 'none', cursor: 'pointer', position: 'relative',
+            transition: 'background-color 0.2s', padding: 0,
+          }}
+        >
+          <div style={{
+            position: 'absolute', top: '3px',
+            left: billedYearly ? '23px' : '3px',
+            width: '18px', height: '18px', borderRadius: '50%',
+            backgroundColor: '#fff', transition: 'left 0.2s',
+          }} />
+        </button>
+        <span style={{ fontSize: '13px', color: subtle, fontFamily: 'Inter, sans-serif' }}>
+          Billed Yearly
+          {billedYearly && (
+            <span style={{ marginLeft: '8px', fontSize: '11px', color: '#5aad7a' }}>
+              Save 25%
+            </span>
+          )}
+        </span>
+      </div>
+
+      {/* Trust line */}
+      <div style={{
+        marginTop: '20px', fontSize: '12px',
+        color: dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.3)',
+        fontFamily: 'Inter, sans-serif',
+        display: 'flex', alignItems: 'center', gap: '6px',
+      }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+          <rect x="5" y="11" width="14" height="11" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
+          <path d="M8 11V7C8 4.79 9.79 3 12 3C14.21 3 16 4.79 16 7V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
         Secured by Razorpay · UPI, Cards, Netbanking accepted
-      </p>
+      </div>
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
