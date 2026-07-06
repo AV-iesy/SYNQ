@@ -44,71 +44,193 @@ function Paywall({ onUnlock }) {
   const { theme } = useTheme()
   const dark = theme === 'dark'
   const [billedYearly, setBilledYearly] = useState(false)
-  const [loading, setLoading] = useState(null)
-  const [error, setError] = useState('')
-  const [glarePos, setGlarePos] = useState({})
+const [loading, setLoading] = useState(null)
+const [error, setError] = useState('')
+const [glarePos, setGlarePos] = useState({})
+const [gateway, setGateway] = useState('razorpay') // 'razorpay' | 'paypal'
 
   const text = dark ? '#f0f0f0' : '#0a0a0a'
   const subtle = dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)'
   const cardBg = dark ? '#111111' : '#ffffff'
   const cardBorder = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
 
-  const plans = [
-    {
-      key: 'free',
-      label: 'Free',
-      badge: null,
-      desc: 'Good for getting started.',
-      price: '₹0',
-      suffix: '/mo',
-      featured: false,
-      cta: 'Current plan',
-      disabled: true,
-      features: [
-        { text: 'Dashboard & streaks', available: true },
-        { text: 'AI schedule generation', available: true },
-        { text: 'Journal entries', available: true },
-        { text: 'Analytics', available: false },
-        { text: 'Mood insights', available: false },
-      ],
+  // const plans = [
+  //   {
+  //     key: 'free',
+  //     label: 'Free',
+  //     badge: null,
+  //     desc: 'Good for getting started.',
+  //     price: '₹0',
+  //     suffix: '/mo',
+  //     featured: false,
+  //     cta: 'Current plan',
+  //     disabled: true,
+  //     features: [
+  //       { text: 'Dashboard & streaks', available: true },
+  //       { text: 'AI schedule generation', available: true },
+  //       { text: 'Journal entries', available: true },
+  //       { text: 'Analytics', available: false },
+  //       { text: 'Mood insights', available: false },
+  //     ],
+  //   },
+  //   {
+  //     key: 'monthly',
+  //     label: 'Pro',
+  //     badge: 'Popular',
+  //     desc: 'For people who want more.',
+  //     price: billedYearly ? '₹149' : '₹199',
+  //     suffix: '/mo',
+  //     featured: true,
+  //     cta: 'Get started',
+  //     disabled: false,
+  //     features: [
+  //       { text: 'Everything in Free', available: true },
+  //       { text: 'Complete Analytics', available: true },
+  //       { text: 'Mood vs productivity', available: true },
+  //       { text: 'Focus time trends', available: true },
+  //       { text: 'Unlimited history', available: true },
+  //     ],
+  //   },
+  //   {
+  //     key: 'lifetime',
+  //     label: 'Lifetime',
+  //     badge: 'Best value',
+  //     desc: 'Pay once, use forever.',
+  //     price: '₹999',
+  //     suffix: '',
+  //     featured: false,
+  //     cta: 'Get started',
+  //     disabled: false,
+  //     features: [
+  //       { text: 'Everything in Pro', available: true },
+  //       { text: 'All future features', available: true },
+  //       { text: 'Priority support', available: true },
+  //       { text: 'Early access', available: true },
+  //       { text: 'Never pay again', available: true },
+  //     ],
+  //   },
+  // ]
+
+
+const plans = [
+  {
+    key: 'free',
+    label: 'Free',
+    badge: null,
+    desc: 'Good for getting started.',
+    price: { razorpay: '₹0', paypal: '$0' },
+    suffix: '/mo',
+    featured: false,
+    cta: 'Current plan',
+    disabled: true,
+    features: [
+      { text: 'Dashboard & streaks', available: true },
+      { text: 'AI schedule generation', available: true },
+      { text: 'Journal entries', available: true },
+      { text: 'Analytics', available: false },
+      { text: 'Mood insights', available: false },
+    ],
+  },
+  {
+    key: 'monthly',
+    label: 'Pro',
+    badge: 'Popular',
+    desc: 'For people who want more.',
+    price: {
+      razorpay: billedYearly ? '₹149' : '₹199',
+      paypal: billedYearly ? '$2' : '$3',
     },
-    {
-      key: 'monthly',
-      label: 'Pro',
-      badge: 'Popular',
-      desc: 'For people who want more.',
-      price: billedYearly ? '₹149' : '₹199',
-      suffix: '/mo',
-      featured: true,
-      cta: 'Get started',
-      disabled: false,
-      features: [
-        { text: 'Everything in Free', available: true },
-        { text: 'Complete Analytics', available: true },
-        { text: 'Mood vs productivity', available: true },
-        { text: 'Focus time trends', available: true },
-        { text: 'Unlimited history', available: true },
-      ],
-    },
-    {
-      key: 'lifetime',
-      label: 'Lifetime',
-      badge: 'Best value',
-      desc: 'Pay once, use forever.',
-      price: '₹999',
-      suffix: '',
-      featured: false,
-      cta: 'Get started',
-      disabled: false,
-      features: [
-        { text: 'Everything in Pro', available: true },
-        { text: 'All future features', available: true },
-        { text: 'Priority support', available: true },
-        { text: 'Early access', available: true },
-        { text: 'Never pay again', available: true },
-      ],
-    },
-  ]
+    suffix: '/mo',
+    featured: true,
+    cta: 'Get started',
+    disabled: false,
+    features: [
+      { text: 'Everything in Free', available: true },
+      { text: 'Complete Analytics', available: true },
+      { text: 'Mood vs productivity', available: true },
+      { text: 'Focus time trends', available: true },
+      { text: 'Unlimited history', available: true },
+    ],
+  },
+  {
+    key: 'lifetime',
+    label: 'Lifetime',
+    badge: 'Best value',
+    desc: 'Pay once, use forever.',
+    price: { razorpay: '₹999', paypal: '$15' },
+    suffix: '',
+    featured: false,
+    cta: 'Get started',
+    disabled: false,
+    features: [
+      { text: 'Everything in Pro', available: true },
+      { text: 'All future features', available: true },
+      { text: 'Priority support', available: true },
+      { text: 'Early access', available: true },
+      { text: 'Never pay again', available: true },
+    ],
+  },
+]
+
+
+const loadPayPalScript = (clientId) =>
+  new Promise((resolve) => {
+    if (document.getElementById('paypal-sdk')) return resolve(true)
+    const script = document.createElement('script')
+    script.id = 'paypal-sdk'
+    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD`
+    script.onload = () => resolve(true)
+    script.onerror = () => resolve(false)
+    document.body.appendChild(script)
+  })
+
+const handlePayPalPayment = async (planKey) => {
+  if (planKey === 'free') return
+  setLoading(planKey)
+  setError('')
+  try {
+    const order = await paymentApi.createPayPalOrder(planKey)
+    const loaded = await loadPayPalScript(order.clientId)
+    if (!loaded) throw new Error('PayPal failed to load.')
+
+    window.paypal.Buttons({
+      createOrder: () => order.orderId,
+      onApprove: async (data) => {
+        try {
+          const result = await paymentApi.capturePayPalOrder(data.orderID, planKey)
+          if (result.success) onUnlock(result.user)
+        } catch {
+          setError('PayPal payment verification failed. Contact support.')
+        }
+        setLoading(null)
+      },
+      onCancel: () => setLoading(null),
+      onError: () => {
+        setError('PayPal payment failed. Please try again.')
+        setLoading(null)
+      },
+      style: {
+        layout: 'vertical',
+        color: 'black',
+        shape: 'rect',
+        label: 'pay',
+        height: 44,
+      },
+    }).render(`#paypal-button-${planKey}`)
+  } catch (err) {
+    setError(err.message || 'Something went wrong.')
+    setLoading(null)
+  }
+}
+
+const handleRazorpayPayment = async (planKey) => {
+  if (gateway === 'paypal') {
+    handlePayPalPayment(planKey)
+  } else {
+    handleRazorpayPayment(planKey)
+  }
+}
+
 
   const loadRazorpay = () =>
     new Promise((resolve) => {
@@ -215,6 +337,71 @@ function Paywall({ onUnlock }) {
   </p>
 </div>
 
+{/* Gateway toggle */}
+<div style={{
+  display: 'flex', alignItems: 'center', gap: '8px',
+  marginBottom: '28px',
+  backgroundColor: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+  border: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+  borderRadius: '12px', padding: '4px',
+}}>
+  {[
+    {
+      key: 'razorpay',
+      label: 'Razorpay',
+      flag: '🇮🇳',
+      sub: 'UPI · Cards · Netbanking',
+    },
+    {
+      key: 'paypal',
+      label: 'PayPal',
+      flag: '🌍',
+      sub: 'International · Cards',
+    },
+  ].map(g => (
+    <button
+      key={g.key}
+      onClick={() => setGateway(g.key)}
+      style={{
+        flex: 1, display: 'flex', alignItems: 'center', gap: '10px',
+        padding: '10px 16px', borderRadius: '9px', border: 'none',
+        cursor: 'pointer', transition: 'all 0.15s',
+        backgroundColor: gateway === g.key
+          ? dark ? '#1a1a1a' : '#fff'
+          : 'transparent',
+        boxShadow: gateway === g.key
+          ? '0 2px 8px rgba(0,0,0,0.15)'
+          : 'none',
+      }}
+    >
+      <span style={{ fontSize: '18px' }}>{g.flag}</span>
+      <div style={{ textAlign: 'left' }}>
+        <div style={{
+          fontSize: '13px', fontWeight: 600,
+          color: gateway === g.key ? text : subtle,
+          fontFamily: 'Inter, sans-serif',
+        }}>
+          {g.label}
+        </div>
+        <div style={{
+          fontSize: '10px', color: subtle,
+          fontFamily: 'Inter, sans-serif',
+          opacity: gateway === g.key ? 1 : 0.6,
+        }}>
+          {g.sub}
+        </div>
+      </div>
+      {gateway === g.key && (
+        <div style={{
+          marginLeft: 'auto', width: '7px', height: '7px',
+          borderRadius: '50%', backgroundColor: '#ff4d00',
+          flexShrink: 0,
+        }} />
+      )}
+    </button>
+  ))}
+</div>
+
       {/* Cards */}
       <div style={{
         display: 'grid',
@@ -293,11 +480,13 @@ function Paywall({ onUnlock }) {
                 {/* Price */}
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', marginBottom: '20px' }}>
                   <span style={{
-                    fontFamily: 'Bricolage Grotesque, sans-serif',
-                    fontSize: '40px', fontWeight: 600, color: text,
-                    letterSpacing: '-0.03em', lineHeight: 1,
-                  }}>
-                    {plan.price}
+  fontFamily: 'Bricolage Grotesque, sans-serif',
+  fontSize: plan.price[gateway] === '₹0' || plan.price[gateway] === '$0' ? '48px' : '44px',
+  fontWeight: 600, color: text,
+  letterSpacing: '-0.03em', lineHeight: 1,
+  display: 'flex', alignItems: 'baseline', gap: '2px',
+}}>
+  {plan.price[gateway]}
                   </span>
                   {plan.suffix && (
                     <span style={{ fontSize: '14px', color: subtle, fontFamily: 'Inter, sans-serif' }}>
@@ -340,8 +529,12 @@ function Paywall({ onUnlock }) {
                 </div>
 
                 {/* CTA Button */}
-                <button
-                  onClick={() => handlePayment(plan.key)}
+{gateway === 'paypal' && !plan.disabled && loading === plan.key ? (
+  <div id={`paypal-button-${plan.key}`} style={{ marginTop: '4px' }} />
+) : null}
+
+<button
+  onClick={() => handlePayment(plan.key)}
                   disabled={plan.disabled || loading === plan.key}
                   style={{
                     width: '100%', padding: '12px',
@@ -377,7 +570,7 @@ function Paywall({ onUnlock }) {
                       }} />
                       Processing...
                     </>
-                  ) : plan.cta}
+                  ) : plan.disabled ? plan.cta : `${plan.cta} · ${plan.price[gateway]}${plan.suffix}`}
                 </button>
               </div>
             </div>

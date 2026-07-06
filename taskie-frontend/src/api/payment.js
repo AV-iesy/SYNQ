@@ -8,3 +8,9 @@ export const verifyPayment = (payload) =>
 
 export const getStatus = () =>
   api.get('/payment/status').then(r => r.data)
+
+export const createPayPalOrder = (plan) =>
+  api.post('/payment/paypal/create-order', { plan }).then(r => r.data)
+
+export const capturePayPalOrder = (orderId, plan) =>
+  api.post('/payment/paypal/capture', { orderId, plan }).then(r => r.data)
