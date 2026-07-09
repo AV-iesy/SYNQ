@@ -184,6 +184,58 @@ const loadPayPalScript = (clientId) =>
     document.body.appendChild(script)
   })
 
+useEffect(() => {
+  if (gateway !== 'paypal') return
+
+  const renderPayPalButtons = async () => {
+    // Load PayPal script first using a temp order to get clientId
+    try {
+      const order = await paymentApi.createPayPalOrder('monthly')
+      const loaded = await loadPayPalScript(order.clientId)
+      if (!loaded) return
+
+      // Render a button for each non-free plan
+      ;['monthly', 'lifetime'].forEach(planKey => {
+        const container = document.getElementById(`paypal-button-${planKey}`)
+        if (!container || container.children.length > 0) return
+
+        window.paypal.Buttons({
+          createOrder: async () => {
+            const o = await paymentApi.createPayPalOrder(planKey)
+            return o.orderId
+          },
+          onApprove: async (data) => {
+            try {
+              const result = await paymentApi.capturePayPalOrder(data.orderID, planKey)
+              if (result.success) onUnlock(result.user)
+            } catch {
+              setError('PayPal payment verification failed. Contact support.')
+            }
+            setLoading(null)
+          },
+          onCancel: () => setLoading(null),
+          onError: () => {
+            setError('PayPal payment failed. Please try again.')
+            setLoading(null)
+          },
+          style: {
+            layout: 'vertical',
+            color: 'black',
+            shape: 'rect',
+            label: 'pay',
+            height: 44,
+          },
+        }).render(`#paypal-button-${planKey}`)
+      })
+    } catch (err) {
+      console.error('PayPal render error:', err)
+    }
+  }
+
+  renderPayPalButtons()
+}, [gateway])
+
+
 const handlePayPalPayment = async (planKey) => {
   if (planKey === 'free') return
   setLoading(planKey)
@@ -529,13 +581,16 @@ const handleRazorpayPayment = async (planKey) => {
                 </div>
 
                 {/* CTA Button */}
-{gateway === 'paypal' && !plan.disabled && loading === plan.key ? (
-  <div id={`paypal-button-${plan.key}`} style={{ marginTop: '4px' }} />
-) : null}
+{/* PayPal button container — always rendered when PayPal selected */}
+{gateway === 'paypal' && !plan.disabled && (
+  <div id={`paypal-button-${plan.key}`} style={{ marginTop: '4px', minHeight: '44px' }} />
+)}
 
+{/* Razorpay button — only shown when Razorpay selected */}
+{gateway === 'razorpay' && (
 <button
   onClick={() => handlePayment(plan.key)}
-                  disabled={plan.disabled || loading === plan.key}
+  disabled={plan.disabled || loading === plan.key}
                   style={{
                     width: '100%', padding: '12px',
                     borderRadius: '8px', border: 'none',
@@ -571,12 +626,13 @@ const handleRazorpayPayment = async (planKey) => {
                       Processing...
                     </>
                   ) : plan.disabled ? plan.cta : `${plan.cta} · ${plan.price[gateway]}${plan.suffix}`}
-                </button>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+              </button>
+            )}
+          </div>
+        </div>
+      )
+    })}
+  </div>
 
       {/* Error */}
       {error && (
