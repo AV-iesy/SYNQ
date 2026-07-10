@@ -14,7 +14,7 @@ const navItems = [
 ]
 
 export default function AppLayout({ children }) {
-  const { theme, toggleTheme } = useTheme()
+  const { theme } = useTheme()
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -96,21 +96,11 @@ export default function AppLayout({ children }) {
 
         {/* Bottom */}
         <div style={{ padding: '16px 12px', borderTop: `1px solid ${faint}` }}>
-          <button onClick={toggleTheme} style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '10px 14px', borderRadius: '10px',
-            border: 'none', backgroundColor: 'transparent',
-            color: subtle, fontSize: '13px',
-            fontFamily: 'Inter, sans-serif',
-            cursor: 'pointer', width: '100%', textAlign: 'left',
-            marginBottom: '8px',
-          }}>
-            {dark ? 'Light mode' : 'Dark mode'}
-          </button>
+
 
           <div style={{
             padding: '12px 14px', borderRadius: '12px',
-            backgroundColor: dark ? 'rgba(255,255,255,0)' : 'rgba(0,0,0,0)',
+            backgroundColor: 'transparent',
             border: `1px solid ${faint}`,
           }}>
             <div style={{
@@ -200,7 +190,7 @@ export default function AppLayout({ children }) {
 // ]
 
 // export default function AppLayout({ children }) {
-//   const { theme, toggleTheme } = useTheme()
+//   const { theme } = useTheme()
 //   const { user, logout } = useAuth()
 //   const location = useLocation()
 //   const navigate = useNavigate()

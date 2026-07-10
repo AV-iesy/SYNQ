@@ -276,10 +276,46 @@ const handlePayPalPayment = async (planKey) => {
 }
 
 const handleRazorpayPayment = async (planKey) => {
-  if (gateway === 'paypal') {
-    handlePayPalPayment(planKey)
-  } else {
-    handleRazorpayPayment(planKey)
+  if (planKey === 'free') return
+  setLoading(planKey)
+  setError('')
+  try {
+    const loaded = await loadRazorpay()
+    if (!loaded) throw new Error('Razorpay failed to load.')
+    const order = await paymentApi.createOrder(planKey)
+    const options = {
+      key: order.keyId,
+      amount: order.amount,
+      currency: order.currency,
+      name: 'SYNQ',
+      description: planKey === 'lifetime' ? 'SYNQ Lifetime Access' : 'SYNQ Pro Monthly',
+      order_id: order.orderId,
+      prefill: { name: user?.name || '', email: user?.email || '' },
+      theme: { color: '#ff4d00' },
+      handler: async (response) => {
+        try {
+          const result = await paymentApi.verifyPayment({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            plan: planKey,
+          })
+          if (result.success) onUnlock(result.user)
+        } catch {
+          setError('Payment verification failed. Contact support.')
+        }
+      },
+      modal: { ondismiss: () => setLoading(null) },
+    }
+    const rzp = new window.Razorpay(options)
+    rzp.on('payment.failed', () => {
+      setError('Payment failed. Please try again.')
+      setLoading(null)
+    })
+    rzp.open()
+  } catch (err) {
+    setError(err.message || 'Something went wrong.')
+    setLoading(null)
   }
 }
 
@@ -294,49 +330,53 @@ const handleRazorpayPayment = async (planKey) => {
       document.body.appendChild(script)
     })
 
-  const handlePayment = async (planKey) => {
-    if (planKey === 'free') return
-    setLoading(planKey)
-    setError('')
-    try {
-      const loaded = await loadRazorpay()
-      if (!loaded) throw new Error('Razorpay failed to load.')
-      const order = await paymentApi.createOrder(planKey)
-      const options = {
-        key: order.keyId,
-        amount: order.amount,
-        currency: order.currency,
-        name: 'SYNQ',
-        description: planKey === 'lifetime' ? 'SYNQ Lifetime Access' : 'SYNQ Pro Monthly',
-        order_id: order.orderId,
-        prefill: { name: user?.name || '', email: user?.email || '' },
-        theme: { color: '#ff4d00' },
-        handler: async (response) => {
-          try {
-            const result = await paymentApi.verifyPayment({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              plan: planKey,
-            })
-            if (result.success) onUnlock(result.user)
-          } catch {
-            setError('Payment verification failed. Contact support.')
-          }
-        },
-        modal: { ondismiss: () => setLoading(null) },
-      }
-      const rzp = new window.Razorpay(options)
-      rzp.on('payment.failed', () => {
-        setError('Payment failed. Please try again.')
-        setLoading(null)
-      })
-      rzp.open()
-    } catch (err) {
-      setError(err.message || 'Something went wrong.')
-      setLoading(null)
-    }
-  }
+  // const handlePayment = async (planKey) => {
+  //   if (planKey === 'free') return
+  //   setLoading(planKey)
+  //   setError('')
+  //   try {
+  //     const loaded = await loadRazorpay()
+  //     if (!loaded) throw new Error('Razorpay failed to load.')
+  //     const order = await paymentApi.createOrder(planKey)
+  //     const options = {
+  //       key: order.keyId,
+  //       amount: order.amount,
+  //       currency: order.currency,
+  //       name: 'SYNQ',
+  //       description: planKey === 'lifetime' ? 'SYNQ Lifetime Access' : 'SYNQ Pro Monthly',
+  //       order_id: order.orderId,
+  //       prefill: { name: user?.name || '', email: user?.email || '' },
+  //       theme: { color: '#ff4d00' },
+  //       handler: async (response) => {
+  //         try {
+  //           const result = await paymentApi.verifyPayment({
+  //             razorpay_order_id: response.razorpay_order_id,
+  //             razorpay_payment_id: response.razorpay_payment_id,
+  //             razorpay_signature: response.razorpay_signature,
+  //             plan: planKey,
+  //           })
+  //           if (result.success) onUnlock(result.user)
+  //         } catch {
+  //           setError('Payment verification failed. Contact support.')
+  //         }
+  //       },
+  //       modal: { ondismiss: () => setLoading(null) },
+  //     }
+  //     const rzp = new window.Razorpay(options)
+  //     rzp.on('payment.failed', () => {
+  //       setError('Payment failed. Please try again.')
+  //       setLoading(null)
+  //     })
+  //     rzp.open()
+  //   } catch (err) {
+  //     setError(err.message || 'Something went wrong.')
+  //     setLoading(null)
+  //   }
+  // }
+  const handlePayment = (planKey) => {
+  if (gateway === 'paypal') return
+  handleRazorpayPayment(planKey)
+}
 
   const handleMouseMove = (e, key) => {
     const rect = e.currentTarget.getBoundingClientRect()

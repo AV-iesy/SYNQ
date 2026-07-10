@@ -7,7 +7,7 @@ import ShineBorder from '../components/common/ShineBorder'
 
 export default function Login() {
   const { login, register } = useAuth()
-  const { theme, toggleTheme } = useTheme()
+  const { theme } = useTheme()
   const navigate = useNavigate()
 
   const [isLogin, setIsLogin] = useState(true)
@@ -42,20 +42,9 @@ export default function Login() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-4"
-      style={{ backgroundColor: dark ? '#080808' : '#fafafa' }}
+      style={{ backgroundColor: '#080808' }}
     >
-      {/* Theme toggle */}
-      <button
-        onClick={toggleTheme}
-        className="fixed top-5 right-5 w-9 h-9 rounded-full flex items-center justify-center text-sm transition-colors"
-        style={{
-          border: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
-          color: dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
-          backgroundColor: 'transparent',
-        }}
-      >
-        {dark ? '○' : '●'}
-      </button>
+
 
       {/* Logo */}
       <Link
