@@ -14,7 +14,7 @@ export default function Landing() {
       {/* Logo */}
       {/* Logo */}
 <div style={{ marginBottom: '32px', position: 'relative', zIndex: 1 }}>
-  <InfinityIcon size={98} color="#ff4d00" strokeWidth={2.5} />
+  <InfinityIcon size={98} color="#ffffff" strokeWidth={2.5} />
 </div>
 
       {/* Headline */}

@@ -4,7 +4,6 @@ import { useTheme } from '../context/ThemeContext'
 import synqLogo from '../assets/synq-logo.png'
 import * as scheduleApi from '../api/schedule'
 import * as taskApi from '../api/tasks'
-import ShaderAnimationRed from '../components/common/ShaderAnimationRed'
 
 const TAG_COLORS = {
   sleep:    { color: '#8b6bc7', bg: 'rgba(139,107,199,0.15)', border: 'rgba(139,107,199,0.3)' },
@@ -137,7 +136,6 @@ Rules:
   return (
     <AppLayout>
       <div style={{ position: 'relative', minHeight: '200vh', margin: '-40px -40px', padding: '40px 48px' }}>
-        <ShaderAnimationRed opacity={0.5} />
         <div style={{ position: 'relative', zIndex: 1 }}>
 
           {/* HEADER */}
