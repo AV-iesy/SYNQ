@@ -16,6 +16,9 @@ const paymentRoutes = require('./routes/paymentRoutes')
 
 const app = express()
 
+// Trust proxy — required for Render/Railway/Vercel deployments
+app.set('trust proxy', 1)
+
 // Connect to MongoDB
 connectDB()
 
