@@ -15,17 +15,19 @@ const journalRoutes = require('./routes/journalRoutes')
 const paymentRoutes = require('./routes/paymentRoutes')
 
 const app = express()
-
 // Trust proxy — required for Render/Railway/Vercel deployments
 app.set('trust proxy', 1)
-
 // Connect to MongoDB
 connectDB()
 
 // Middleware
 app.use(helmet())
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'https://synq-life.vercel.app',
+  ],
   credentials: true,
 }))
 app.use(express.json())
