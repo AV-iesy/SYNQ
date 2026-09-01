@@ -10,6 +10,7 @@ const taskSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
+    maxlength: 300,
   },
   status: {
     type: String,
@@ -19,6 +20,8 @@ const taskSchema = new mongoose.Schema({
   tag: {
     type: String,
     default: 'general',
+    trim: true,
+    maxlength: 50,
   },
   date: {
     type: String, // YYYY-MM-DD, which day this task belongs to

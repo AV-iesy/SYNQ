@@ -45,7 +45,7 @@ export default function CrowdCanvas({ src, rows = 15, cols = 7 }) {
     }
 
     const normalWalk = ({ peep, props }) => {
-      const { startX, startY, endX } = props
+      const { startY, endX } = props
       const xDuration = 10
       const yDuration = 0.25
 
@@ -193,7 +193,7 @@ export default function CrowdCanvas({ src, rows = 15, cols = 7 }) {
         if (peep.walk) peep.walk.kill()
       })
     }
-  }, [])
+  }, [src, rows, cols])
 
   return (
     <canvas

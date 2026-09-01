@@ -1,21 +1,24 @@
 const Journal = require('../models/Journal')
+const { isValidDateKey } = require('../utils/validation')
+const { sendError } = require('../utils/http')
 
 exports.getAllEntries = async (req, res) => {
   try {
     const entries = await Journal.find({ user: req.user._id }).sort({ date: -1 })
     res.json({ entries })
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message })
+    sendError(res, error)
   }
 }
 
 exports.getEntryByDate = async (req, res) => {
   try {
     const { date } = req.params
+    if (!isValidDateKey(date)) return res.status(400).json({ message: 'Invalid date' })
     const entry = await Journal.findOne({ user: req.user._id, date })
     res.json({ entry: entry || null })
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message })
+    sendError(res, error)
   }
 }
 
@@ -23,8 +26,15 @@ exports.saveEntry = async (req, res) => {
   try {
     const { date, mood, text } = req.body
 
-    if (!date) {
+    if (!isValidDateKey(date)) {
       return res.status(400).json({ message: 'Date is required' })
+    }
+
+    if (mood !== undefined && mood !== null && !['great', 'good', 'okay', 'low', 'rough'].includes(mood)) {
+      return res.status(400).json({ message: 'Invalid mood' })
+    }
+    if (text !== undefined && typeof text !== 'string') {
+      return res.status(400).json({ message: 'Text must be a string' })
     }
 
     const entry = await Journal.findOneAndUpdate(
@@ -35,16 +45,18 @@ exports.saveEntry = async (req, res) => {
 
     res.json({ entry })
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message })
+    sendError(res, error)
   }
 }
 
 exports.deleteEntry = async (req, res) => {
   try {
     const { date } = req.params
-    await Journal.findOneAndDelete({ user: req.user._id, date })
+    if (!isValidDateKey(date)) return res.status(400).json({ message: 'Invalid date' })
+    const entry = await Journal.findOneAndDelete({ user: req.user._id, date })
+    if (!entry) return res.status(404).json({ message: 'Entry not found' })
     res.json({ message: 'Entry deleted' })
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message })
+    sendError(res, error)
   }
 }

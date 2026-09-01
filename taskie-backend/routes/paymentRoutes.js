@@ -6,6 +6,7 @@ const {
   getStatus,
   createPayPalOrder,
   capturePayPalOrder,
+  getPayPalConfig,
 } = require('../controllers/paymentController')
 const { protect } = require('../middleware/auth')
 
@@ -15,6 +16,7 @@ router.post('/verify', protect, verifyPayment)
 router.get('/status', protect, getStatus)
 
 // PayPal
+router.get('/paypal/config', protect, getPayPalConfig)
 router.post('/paypal/create-order', protect, createPayPalOrder)
 router.post('/paypal/capture', protect, capturePayPalOrder)
 

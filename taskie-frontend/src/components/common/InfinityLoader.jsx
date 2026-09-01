@@ -1,5 +1,3 @@
-import React from 'react'
-
 export default function InfinityLoader({ size = 64, color = '#ff4d00', trackColor = 'rgba(255,77,0,0.15)', dotSize = 1.2, speed = 5.8 }) {
   const pathId = 'infinity-path'
 

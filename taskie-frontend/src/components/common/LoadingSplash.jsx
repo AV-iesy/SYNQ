@@ -1,4 +1,3 @@
-import React from 'react'
 import DotMatrixLoader from './DotMatrixLoader'
 import { useTheme } from '../../context/ThemeContext'
 

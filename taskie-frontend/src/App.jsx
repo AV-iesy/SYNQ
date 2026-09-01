@@ -16,7 +16,6 @@ import Journal from './pages/Journal'
 import Analytics from './pages/Analytics'
 
 export default function App() {
-  console.log('APP RENDERED')
   return (
     <ThemeProvider>
       <AuthProvider>

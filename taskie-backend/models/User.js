@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
+    maxlength: 100,
   },
   email: {
     type: String,
@@ -13,6 +14,7 @@ const userSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
+    maxlength: 254,
   },
   password: {
     type: String,
@@ -33,6 +35,12 @@ const userSchema = new mongoose.Schema({
   premiumPlan: { type: String, enum: ['monthly', 'lifetime'], default: null },
   premiumSince: { type: Date, default: null },
   premiumExpiry: { type: Date, default: null },
+  paymentHistory: [{
+    provider: { type: String, enum: ['razorpay', 'paypal'], required: true },
+    paymentId: { type: String, required: true },
+    plan: { type: String, enum: ['monthly', 'lifetime'], required: true },
+    paidAt: { type: Date, default: Date.now },
+  }],
 }, { timestamps: true })
 
 userSchema.pre('save', async function () {
@@ -52,8 +60,11 @@ userSchema.methods.toSafeObject = function () {
     email: this.email,
     preferences: this.preferences,
     stats: this.stats,
+    isPremium: this.isPremium || false,
+    premiumPlan: this.premiumPlan || null,
+    premiumSince: this.premiumSince || null,
+    premiumExpiry: this.premiumExpiry || null,
     createdAt: this.createdAt,
   }
 }
-
 module.exports = mongoose.model('User', userSchema)

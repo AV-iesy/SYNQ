@@ -30,7 +30,12 @@ export default function AppLayout({ children }) {
 
     navigate(to)
 
-    Promise.all([readyPromise, minDelay]).then(() => {
+    const readinessWithFallback = Promise.race([
+      readyPromise,
+      new Promise(resolve => setTimeout(resolve, 3000)),
+    ])
+
+    Promise.all([readinessWithFallback, minDelay]).then(() => {
       endTransition()
     })
   }

@@ -12,5 +12,8 @@ export const getStatus = () =>
 export const createPayPalOrder = (plan) =>
   api.post('/payment/paypal/create-order', { plan }).then(r => r.data)
 
-export const capturePayPalOrder = (orderId, plan) =>
-  api.post('/payment/paypal/capture', { orderId, plan }).then(r => r.data)
+export const getPayPalConfig = () =>
+  api.get('/payment/paypal/config').then(r => r.data)
+
+export const capturePayPalOrder = (orderId) =>
+  api.post('/payment/paypal/capture', { orderId }).then(r => r.data)

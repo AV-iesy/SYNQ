@@ -1,10 +1,10 @@
 const mongoose = require('mongoose')
 
 const blockSchema = new mongoose.Schema({
-  time: String,
-  endTime: String,
-  label: String,
-  tag: String,
+  time: { type: String, required: true },
+  endTime: { type: String, required: true },
+  label: { type: String, required: true, trim: true, maxlength: 300 },
+  tag: { type: String, trim: true, maxlength: 50 },
 }, { _id: false })
 
 const scheduleSchema = new mongoose.Schema({
@@ -18,7 +18,7 @@ const scheduleSchema = new mongoose.Schema({
     required: true,
   },
   blocks: [blockSchema],
-  sourceInput: String, // the original AI prompt text, if any
+  sourceInput: { type: String, maxlength: 10000 }, // the original AI prompt text, if any
 }, { timestamps: true })
 
 scheduleSchema.index({ user: 1, date: 1 }, { unique: true })

@@ -18,6 +18,7 @@ const journalSchema = new mongoose.Schema({
   text: {
     type: String,
     default: '',
+    maxlength: 20000,
   },
 }, { timestamps: true })
 

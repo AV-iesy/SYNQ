@@ -17,20 +17,20 @@ const paymentRoutes = require('./routes/paymentRoutes')
 const app = express()
 // Trust proxy — required for Render/Railway/Vercel deployments
 app.set('trust proxy', 1)
-// Connect to MongoDB
-connectDB()
-
 // Middleware
 app.use(helmet())
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'https://synq-life.vercel.app',
+  process.env.CLIENT_URL,
+].filter(Boolean)
+
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'https://synq-life.vercel.app',
-  ],
+  origin: allowedOrigins,
   credentials: true,
 }))
-app.use(express.json())
+app.use(express.json({ limit: '1mb' }))
 app.use(morgan('dev'))
 
 // Rate limiting
@@ -60,10 +60,20 @@ app.use((req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
   console.error(err.stack)
-  res.status(500).json({ message: 'Something went wrong', error: err.message })
+  res.status(500).json({ message: 'Something went wrong' })
 })
 
 const PORT = process.env.PORT || 5000
-app.listen(PORT, () => {
-  console.log(`SYNQ backend running on port ${PORT}`)
-})
+
+async function start() {
+  await connectDB()
+  return app.listen(PORT, () => {
+    console.log(`SYNQ backend running on port ${PORT}`)
+  })
+}
+
+if (require.main === module) {
+  start().catch(() => process.exit(1))
+}
+
+module.exports = { app, start }

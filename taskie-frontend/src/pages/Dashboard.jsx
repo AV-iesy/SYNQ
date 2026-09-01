@@ -6,6 +6,7 @@ import { usePageTransition } from '../context/PageTransitionContext'
 import ProgressiveBlur from '../components/common/ProgressiveBlur'
 import * as taskApi from '../api/tasks'
 import * as scheduleApi from '../api/schedule'
+import { formatLocalDate } from '../utils/date'
 
 const tagStyle = {
   study:   { bg: 'rgba(139,107,199,0.15)', color: '#a78bda', border: 'rgba(139,107,199,0.3)' },
@@ -31,7 +32,7 @@ const TAG_DOTS = {
 }
 
 function getTodayKey() {
-  return new Date().toISOString().split('T')[0]
+  return formatLocalDate()
 }
 
 function buildCalendarData(scheduleDates) {
@@ -40,7 +41,7 @@ function buildCalendarData(scheduleDates) {
   for (let i = 195; i >= 0; i--) {
     const d = new Date(today)
     d.setDate(today.getDate() - i)
-    const key = d.toISOString().split('T')[0]
+    const key = formatLocalDate(d)
     const level = scheduleDates.has(key) ? 4 : 0
     days.push({ date: key, level })
   }
@@ -213,9 +214,7 @@ function ActivityRings({ completionPct, tasksPct, studyPct }) {
 export default function Dashboard() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
-   //const { reportReady } = usePageTransition()
-   const pageTransition = usePageTransition()
-const reportReady = pageTransition?.reportReady || (() => {}) //checkout
+  const { reportReady } = usePageTransition()
 
   const todayKey = getTodayKey()
 
@@ -235,29 +234,32 @@ const [adjustText, setAdjustText] = useState('')
   const hoverBorder = dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'
 
   useEffect(() => {
+    let cancelled = false
+    const loadData = async () => {
+      setLoading(true)
+      try {
+        const [tasksData, scheduleData, allSchedules] = await Promise.all([
+          taskApi.getTasks(todayKey),
+          scheduleApi.getSchedule(todayKey),
+          scheduleApi.getAllSchedules(),
+        ])
+        if (cancelled) return
+        setTasks(tasksData || [])
+        setSchedule(scheduleData?.blocks || null)
+        const scheduleDates = new Set((allSchedules || []).map(s => s.date))
+        setCalendarData(buildCalendarData(scheduleDates))
+      } catch (err) {
+        console.error('Failed to load dashboard data:', err)
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+          reportReady()
+        }
+      }
+    }
     loadData()
-  }, [])
-
-  const loadData = async () => {
-  setLoading(true)
-  try {
-    const [tasksData, scheduleData, allSchedules] = await Promise.all([
-      taskApi.getTasks(todayKey),
-      scheduleApi.getSchedule(todayKey),
-      scheduleApi.getAllSchedules(),
-    ])
-    setTasks(tasksData || [])
-    setSchedule(scheduleData?.blocks || null)
-
-    const scheduleDates = new Set((allSchedules || []).map(s => s.date))
-    setCalendarData(buildCalendarData(scheduleDates))
-  } catch (err) {
-  console.error('Failed to load dashboard data:', err)
-} finally {
-  setLoading(false)
-  reportReady()
-}
-}
+    return () => { cancelled = true }
+  }, [reportReady, todayKey])
 
   const completed = tasks.filter(t => t.status === 'completed').length
 const completionPct = tasks.length === 0 ? 0 : Math.round((completed / tasks.length) * 100)
@@ -315,7 +317,7 @@ const handleRemindTomorrow = async () => {
   const todayDate = new Date(todayKey)
   const tomorrow = new Date(todayDate)
   tomorrow.setDate(tomorrow.getDate() + 1)
-  const tomorrowKey = tomorrow.toISOString().split('T')[0]
+  const tomorrowKey = formatLocalDate(tomorrow)
 
   try {
     await taskApi.createTask(partialTask.title, tomorrowKey, partialTask.tag)

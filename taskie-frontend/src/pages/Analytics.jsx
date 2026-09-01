@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import AppLayout from '../components/common/AppLayout'
@@ -11,6 +11,7 @@ import * as taskApi from '../api/tasks'
 import * as scheduleApi from '../api/schedule'
 import * as journalApi from '../api/journal'
 import * as paymentApi from '../api/payment'
+import { dateRange } from '../utils/date'
 
 const RANGES = [
   { key: 7, label: '7d' },
@@ -28,14 +29,7 @@ const MOOD_SCORES = { great: 5, good: 4, okay: 3, low: 2, rough: 1 }
 const MOOD_COLORS = { great: '#ff4d00', good: '#5aad7a', okay: '#4a90d9', low: '#8b6bc7', rough: '#888' }
 
 function getDateRange(days) {
-  const dates = []
-  const today = new Date()
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today)
-    d.setDate(d.getDate() - i)
-    dates.push(d.toISOString().split('T')[0])
-  }
-  return dates
+  return dateRange(days)
 }
 
 // ── Paywall Component ─────────────────────────────────────────
@@ -43,7 +37,6 @@ function Paywall({ onUnlock }) {
   const { user } = useAuth()
   const { theme } = useTheme()
   const dark = theme === 'dark'
-  const [billedYearly, setBilledYearly] = useState(false)
 const [loading, setLoading] = useState(null)
 const [error, setError] = useState('')
 const [glarePos, setGlarePos] = useState({})
@@ -137,8 +130,8 @@ const plans = [
     badge: 'Popular',
     desc: 'For people who want more.',
     price: {
-      razorpay: billedYearly ? '₹149' : '₹199',
-      paypal: billedYearly ? '$2' : '$3',
+      razorpay: '₹199',
+      paypal: '$3',
     },
     suffix: '/mo',
     featured: true,
@@ -188,10 +181,9 @@ useEffect(() => {
   if (gateway !== 'paypal') return
 
   const renderPayPalButtons = async () => {
-    // Load PayPal script first using a temp order to get clientId
     try {
-      const order = await paymentApi.createPayPalOrder('monthly')
-      const loaded = await loadPayPalScript(order.clientId)
+      const { clientId } = await paymentApi.getPayPalConfig()
+      const loaded = await loadPayPalScript(clientId)
       if (!loaded) return
 
       // Render a button for each non-free plan
@@ -206,7 +198,7 @@ useEffect(() => {
           },
           onApprove: async (data) => {
             try {
-              const result = await paymentApi.capturePayPalOrder(data.orderID, planKey)
+              const result = await paymentApi.capturePayPalOrder(data.orderID)
               if (result.success) onUnlock(result.user)
             } catch {
               setError('PayPal payment verification failed. Contact support.')
@@ -233,47 +225,7 @@ useEffect(() => {
   }
 
   renderPayPalButtons()
-}, [gateway])
-
-
-const handlePayPalPayment = async (planKey) => {
-  if (planKey === 'free') return
-  setLoading(planKey)
-  setError('')
-  try {
-    const order = await paymentApi.createPayPalOrder(planKey)
-    const loaded = await loadPayPalScript(order.clientId)
-    if (!loaded) throw new Error('PayPal failed to load.')
-
-    window.paypal.Buttons({
-      createOrder: () => order.orderId,
-      onApprove: async (data) => {
-        try {
-          const result = await paymentApi.capturePayPalOrder(data.orderID, planKey)
-          if (result.success) onUnlock(result.user)
-        } catch {
-          setError('PayPal payment verification failed. Contact support.')
-        }
-        setLoading(null)
-      },
-      onCancel: () => setLoading(null),
-      onError: () => {
-        setError('PayPal payment failed. Please try again.')
-        setLoading(null)
-      },
-      style: {
-        layout: 'vertical',
-        color: 'black',
-        shape: 'rect',
-        label: 'pay',
-        height: 44,
-      },
-    }).render(`#paypal-button-${planKey}`)
-  } catch (err) {
-    setError(err.message || 'Something went wrong.')
-    setLoading(null)
-  }
-}
+}, [gateway, onUnlock])
 
 const handleRazorpayPayment = async (planKey) => {
   if (planKey === 'free') return
@@ -298,11 +250,12 @@ const handleRazorpayPayment = async (planKey) => {
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature,
-            plan: planKey,
           })
           if (result.success) onUnlock(result.user)
         } catch {
           setError('Payment verification failed. Contact support.')
+        } finally {
+          setLoading(null)
         }
       },
       modal: { ondismiss: () => setLoading(null) },
@@ -685,37 +638,6 @@ const handleRazorpayPayment = async (planKey) => {
         </div>
       )}
 
-      {/* Billed Yearly toggle */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '12px',
-        marginTop: '36px',
-      }}>
-        <button
-          onClick={() => setBilledYearly(!billedYearly)}
-          style={{
-            width: '44px', height: '24px', borderRadius: '100px',
-            backgroundColor: billedYearly ? '#ff4d00' : 'rgba(255,255,255,0.15)',
-            border: 'none', cursor: 'pointer', position: 'relative',
-            transition: 'background-color 0.2s', padding: 0,
-          }}
-        >
-          <div style={{
-            position: 'absolute', top: '3px',
-            left: billedYearly ? '23px' : '3px',
-            width: '18px', height: '18px', borderRadius: '50%',
-            backgroundColor: '#fff', transition: 'left 0.2s',
-          }} />
-        </button>
-        <span style={{ fontSize: '13px', color: subtle, fontFamily: 'Inter, sans-serif' }}>
-          Billed Yearly
-          {billedYearly && (
-            <span style={{ marginLeft: '8px', fontSize: '11px', color: '#5aad7a' }}>
-              Save 25%
-            </span>
-          )}
-        </span>
-      </div>
-
       {/* Trust line */}
       <div style={{
         marginTop: '20px', fontSize: '12px',
@@ -761,19 +683,23 @@ function AnalyticsDashboard() {
     ...extra,
   })
 
-  useEffect(() => { loadData() }, [range])
-
-  const loadData = async () => {
+  useEffect(() => {
+    let cancelled = false
+    const loadData = async () => {
     setLoading(true)
     try {
       const dates = getDateRange(range)
-      const [allSchedules, allJournal, taskLists] = await Promise.all([
+      const [allSchedules, allJournal, allTasks] = await Promise.all([
         scheduleApi.getAllSchedules(),
         journalApi.getAllEntries(),
-        Promise.all(dates.map(d => taskApi.getTasks(d).catch(() => []))),
+        taskApi.getAllTasks(),
       ])
+      if (cancelled) return
       const tByDate = {}
-      dates.forEach((d, i) => { tByDate[d] = taskLists[i] || [] })
+      dates.forEach(d => { tByDate[d] = [] })
+      ;(allTasks || []).forEach(task => {
+        if (tByDate[task.date]) tByDate[task.date].push(task)
+      })
       setTasksByDate(tByDate)
       const dateSet = new Set(dates)
       setSchedules((allSchedules || []).filter(s => dateSet.has(s.date)))
@@ -783,9 +709,12 @@ function AnalyticsDashboard() {
     } catch (err) {
       console.error('Failed to load analytics:', err)
     } finally {
-      setLoading(false)
+      if (!cancelled) setLoading(false)
     }
-  }
+    }
+    loadData()
+    return () => { cancelled = true }
+  }, [range])
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: subtle, fontFamily: 'Inter, sans-serif', fontSize: '14px' }}>
@@ -794,7 +723,6 @@ function AnalyticsDashboard() {
   )
 
   const dates = getDateRange(range)
-  let totalTasks = 0, totalCompleted = 0, totalFocusMinutes = 0
   const scheduleByDate = {}
   schedules.forEach(s => { scheduleByDate[s.date] = s })
 
@@ -808,17 +736,23 @@ function AnalyticsDashboard() {
       const [eh, em] = b.endTime.split(':').map(Number)
       return sum + ((eh * 60 + em) - (sh * 60 + sm))
     }, 0) : 0
-    totalTasks += dayTasks.length
-    totalCompleted += completed
-    totalFocusMinutes += focusMinutes
     const dObj = new Date(date + 'T12:00:00')
     const mood = journalEntries[date]?.mood
     return {
       date, label: dObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       completionPct: pct, focusHours: Math.round((focusMinutes / 60) * 10) / 10,
-      moodScore: mood ? MOOD_SCORES[mood] : null, mood,
+      moodScore: mood ? MOOD_SCORES[mood] : null, mood, focusMinutes,
     }
   })
+
+  const totals = trendData.reduce((result, day) => {
+    const dayTasks = tasksByDate[day.date] || []
+    result.tasks += dayTasks.length
+    result.completed += dayTasks.filter(task => task.status === 'completed').length
+    result.focusMinutes += day.focusMinutes
+    return result
+  }, { tasks: 0, completed: 0, focusMinutes: 0 })
+  const { tasks: totalTasks, completed: totalCompleted, focusMinutes: totalFocusMinutes } = totals
 
   const avgCompletion = trendData.length === 0 ? 0 : Math.round(trendData.reduce((s, d) => s + d.completionPct, 0) / trendData.length)
   const totalFocusHoursText = totalFocusMinutes >= 60 ? `${Math.floor(totalFocusMinutes / 60)}h ${totalFocusMinutes % 60}m` : `${totalFocusMinutes}m`
@@ -970,7 +904,7 @@ function AnalyticsDashboard() {
 export default function Analytics() {
   const { user, token } = useAuth()
   const [isPremium, setIsPremium] = useState(user?.isPremium || false)
-  const [checking, setChecking] = useState(true)
+  const [checking, setChecking] = useState(() => Boolean(token))
 
   useEffect(() => {
     // Always verify premium status from server, not just user object
@@ -979,14 +913,12 @@ export default function Analytics() {
         .then(data => setIsPremium(data.isPremium))
         .catch(() => setIsPremium(false))
         .finally(() => setChecking(false))
-    } else {
-      setChecking(false)
     }
   }, [token])
 
-  const handleUnlock = (updatedUser) => {
+  const handleUnlock = useCallback(() => {
     setIsPremium(true)
-  }
+  }, [])
 
   if (checking) {
     return (

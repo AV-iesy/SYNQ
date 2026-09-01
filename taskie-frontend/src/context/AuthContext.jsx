@@ -6,20 +6,23 @@ const AuthContext = createContext()
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(() => localStorage.getItem('synq-token'))
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem('synq-token')))
 
   useEffect(() => {
-    if (token) {
-      authApi.getMe()
-        .then(data => setUser(data.user))
-        .catch(() => {
+    if (!token) return
+    let cancelled = false
+    authApi.getMe()
+      .then(data => { if (!cancelled) setUser(data.user) })
+      .catch(() => {
+        if (!cancelled) {
+          setUser(null)
+          setLoading(false)
           setToken(null)
-          localStorage.removeItem('synq-token')
-        })
-        .finally(() => setLoading(false))
-    } else {
-      setLoading(false)
-    }
+        }
+        localStorage.removeItem('synq-token')
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [token])
 
   const login = async (email, password) => {

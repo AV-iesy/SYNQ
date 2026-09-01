@@ -108,12 +108,7 @@ function buildHistoryData(schedules, tasks) {
 export default function Calendar() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
-  //const { reportReady } = usePageTransition()
-  const pageTransition = usePageTransition()
-  //console.log('CALENDAR CONTEXT:', JSON.stringify(pageTransition))
-//console.log('pageTransition:', pageTransition)
-
-const reportReady = pageTransition?.reportReady || (() => {})
+  const { reportReady } = usePageTransition()
 
   const today = new Date()
   const getInitialNav = () => {
@@ -144,39 +139,32 @@ const reportReady = pageTransition?.reportReady || (() => {})
   const accent = monthColors[currentMonth]
 
   useEffect(() => {
-    loadHistory()
-  }, [])
-
-  const loadHistory = async () => {
-    setLoading(true)
-    try {
-      const [schedules, journalList] = await Promise.all([
-        scheduleApi.getAllSchedules(),
-        journalApi.getAllEntries(),
-      ])
-
-      const jByDate = {}
-      ;(journalList || []).forEach(e => { jByDate[e.date] = e })
-      setJournalEntries(jByDate)
-
-      const dates = new Set(schedules.map(s => s.date))
-      const d = new Date()
-      for (let i = 0; i < 14; i++) {
-        dates.add(d.toISOString().split('T')[0])
-        d.setDate(d.getDate() - 1)
+    let cancelled = false
+    const loadHistory = async () => {
+      setLoading(true)
+      try {
+        const [schedules, journalList, allTasks] = await Promise.all([
+          scheduleApi.getAllSchedules(),
+          journalApi.getAllEntries(),
+          taskApi.getAllTasks(),
+        ])
+        if (cancelled) return
+        const jByDate = {}
+        ;(journalList || []).forEach(entry => { jByDate[entry.date] = entry })
+        setJournalEntries(jByDate)
+        setHistoryData(buildHistoryData(schedules, allTasks || []))
+      } catch (err) {
+        console.error('Failed to load Calendar history:', err)
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+          reportReady()
+        }
       }
-      const taskLists = await Promise.all(
-        Array.from(dates).map(date => taskApi.getTasks(date).catch(() => []))
-      )
-      const allTasks = taskLists.flat()
-      setHistoryData(buildHistoryData(schedules, allTasks))
-    } catch (err) {
-  console.error('Failed to load Calendar history:', err)
-} finally {
-  setLoading(false)
-  reportReady()
-}
-  }
+    }
+    loadHistory()
+    return () => { cancelled = true }
+  }, [reportReady])
 
   const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate()
   const getFirstDay = (y, m) => new Date(y, m, 1).getDay()
@@ -501,7 +489,7 @@ const reportReady = pageTransition?.reportReady || (() => {})
       {loading ? (
   <div />
 ) : (
-  view === 'year' ? <YearView /> : <MonthView />
+  view === 'year' ? YearView() : MonthView()
 )}
     </AppLayout>
   )

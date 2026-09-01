@@ -3,7 +3,6 @@ import { createContext, useContext, useState, useCallback, useRef } from 'react'
 const PageTransitionContext = createContext()
 
 export function PageTransitionProvider({ children }) {
-  console.log('PROVIDER MOUNTED')
   const [transitioning, setTransitioning] = useState(false)
   const readyResolveRef = useRef(null)
 

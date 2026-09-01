@@ -3,6 +3,7 @@ import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
 import * as journalApi from '../api/journal'
 import * as scheduleApi from '../api/schedule'
+import { formatLocalDate } from '../utils/date'
 import { usePageTransition } from '../context/PageTransitionContext'
 
 const MOODS = [
@@ -104,7 +105,7 @@ export default function Journal() {
   const { reportReady } = usePageTransition()
 
   const today = new Date()
-  const todayKey = today.toISOString().split('T')[0]
+  const todayKey = formatLocalDate(today)
 
   const [entries, setEntries] = useState({})
   const [loading, setLoading] = useState(true)
@@ -119,7 +120,6 @@ export default function Journal() {
   const subtle = dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'
   const faint = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
   const cardBg = dark ? '#161616' : '#ffffff'
-  const hoverBorder = dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.14)'
   const inputBg = dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
 
   const card = (extra = {}) => ({
@@ -133,25 +133,29 @@ export default function Journal() {
   const isToday = selectedDate === todayKey
 
   useEffect(() => {
+    let cancelled = false
+    const loadEntries = async () => {
+      setLoading(true)
+      try {
+        const list = await journalApi.getAllEntries()
+        if (cancelled) return
+        const byDate = {}
+        list.forEach(entry => { byDate[entry.date] = entry })
+        setEntries(byDate)
+        setDraftMood(byDate[todayKey]?.mood || null)
+        setDraftText(byDate[todayKey]?.text || '')
+      } catch (err) {
+        console.error('Failed to load journal entries:', err)
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+          reportReady()
+        }
+      }
+    }
     loadEntries()
-  }, [])
-
-  const loadEntries = async () => {
-  setLoading(true)
-  try {
-    const list = await journalApi.getAllEntries()
-    const byDate = {}
-    list.forEach(e => { byDate[e.date] = e })
-    setEntries(byDate)
-    setDraftMood(byDate[todayKey]?.mood || null)
-    setDraftText(byDate[todayKey]?.text || '')
-  } catch (err) {
-    console.error('Failed to load journal entries:', err)
-  } finally {
-    setLoading(false)
-    reportReady()
-  }
-}
+    return () => { cancelled = true }
+  }, [reportReady, todayKey])
 
   const selectDate = (dateKey) => {
     setSelectedDate(dateKey)

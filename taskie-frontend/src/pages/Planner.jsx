@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
-import synqLogo from '../assets/synq-logo.png'
 import * as scheduleApi from '../api/schedule'
 import * as taskApi from '../api/tasks'
+import { formatLocalDate } from '../utils/date'
 
 const TAG_COLORS = {
   sleep:    { color: '#8b6bc7', bg: 'rgba(139,107,199,0.15)', border: 'rgba(139,107,199,0.3)' },
@@ -57,55 +57,7 @@ export default function Planner() {
     setSchedule(null)
 
     try {
-      const Groq = (await import('groq-sdk')).default
-      const groq = new Groq({
-        apiKey: import.meta.env.VITE_GROQ_API_KEY,
-        dangerouslyAllowBrowser: true,
-      })
-
-      const completion = await groq.chat.completions.create({
-        model: 'llama-3.1-8b-instant',
-        messages: [
-          {
-            role: 'system',
-            content: `You are SYNQ's AI scheduling assistant. The user describes their day in plain English. Create an optimized, realistic hourly schedule.
-
-Return ONLY a valid JSON array. No explanation. No markdown. No code fences. Just the raw JSON array.
-
-Each item must have exactly these fields:
-- time: string in "HH:MM" 12-hour format (e.g. "06:00")
-- endTime: string in "HH:MM" 12-hour format
-- label: string — the activity name
-- tag: one of: wake, sleep, gym, workout, work, study, meal, personal, break, health
-
-Rules:
-- Always start with wake up and end with sleep
-- Add breakfast, lunch, dinner at appropriate times if not mentioned
-- Add short breaks between long tasks
-- Hard/important tasks in morning or early afternoon
-- Be realistic with time estimates
-- Add a wind-down block before sleep`,
-          },
-          {
-            role: 'user',
-            content: `Create a schedule for my day: ${input}`,
-          },
-        ],
-        temperature: 0.7,
-        max_tokens: 1500,
-      })
-
-      const raw = completion.choices[0]?.message?.content || ''
-      let cleaned = raw.replace(/```json|```/g, '').trim()
-
-      // Extract just the JSON array portion in case the model added extra text
-      const arrayMatch = cleaned.match(/\[[\s\S]*\]/)
-      if (arrayMatch) cleaned = arrayMatch[0]
-
-      const blocks = JSON.parse(cleaned)
-
-      if (!Array.isArray(blocks)) throw new Error('Invalid response')
-      setSchedule(blocks)
+      setSchedule(await scheduleApi.generateSchedule(input.trim()))
     } catch (err) {
       setError('Could not generate schedule. Please try again.')
       console.error(err)
@@ -115,7 +67,7 @@ Rules:
   }
 
   const saveToDashboard = async () => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = formatLocalDate()
     try {
       await scheduleApi.saveSchedule(today, schedule, input)
 

@@ -1,5 +1,10 @@
 import api from './axios'
 
+export const getAllTasks = async () => {
+  const { data } = await api.get('/tasks')
+  return data.tasks
+}
+
 export const getTasks = async (date) => {
   const { data } = await api.get(`/tasks/${date}`)
   return data.tasks

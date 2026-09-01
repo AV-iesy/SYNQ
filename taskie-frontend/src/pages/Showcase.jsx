@@ -158,16 +158,13 @@ function DashboardScreen({ onNavigate }) {
 >
                   <div style={{ fontSize: '15px',
 fontWeight: 500,
-color: T.textSecondary,
 marginBottom: '6px', color: T.textTertiary, fontFamily: 'Inter, sans-serif', alignItems: 'flex-start' }}>{s.l}</div>
                   <div style={{ fontSize: '36px',
-fontWeight: 700,
 lineHeight: 1,
-letterSpacing: '-0.03em', fontWeight: 700, color: T.textPrimary, fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.01em' }}>{s.v}</div>
+fontWeight: 700, color: T.textPrimary, fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.01em' }}>{s.v}</div>
                   <div
   style={{
     display: 'flex',
-    alignItems: 'center',
     gap: '6px',
     fontSize: '13px',
     fontWeight: 500,
@@ -609,17 +606,17 @@ function CalendarScreen({ onNavigate }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', position: 'relative' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ fontSize: '14px',fontWeight: 500,color: 'rgba(255,255,255,0.58)',letterSpacing: '0.01em', fontFamily: 'Inter, sans-serif' }}>Streak</div>
-                <div style={{ fontSize: '46px', fontWeight: 700,lineHeight: 1,letterSpacing: '-0.05em', color: '#ff4d00', fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.02em' }}>{totalStreak}d</div>
+                <div style={{ fontSize: '46px', fontWeight: 700,lineHeight: 1, color: '#ff4d00', fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.02em' }}>{totalStreak}d</div>
                 <div style={{ fontSize: '10px', color: '#5aad7a', fontFamily: 'Inter, sans-serif' }}>↑ active</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ fontSize: '14px', fontWeight: 500,color: 'rgba(255,255,255,0.58)',letterSpacing: '0.01em', fontFamily: 'Inter, sans-serif' }}>Best</div>
-                <div style={{ fontSize: '46px', fontWeight: 700,lineHeight: 1,letterSpacing: '-0.05em', color: T.textPrimary, fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.02em' }}>{bestStreak}d</div>
+                <div style={{ fontSize: '46px', fontWeight: 700,lineHeight: 1, color: T.textPrimary, fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.02em' }}>{bestStreak}d</div>
                 <div style={{ fontSize: '10px', color: T.textTertiary, fontFamily: 'Inter, sans-serif' }}>all time</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.58)',letterSpacing: '0.01em', fontFamily: 'Inter, sans-serif' }}>Year</div>
-                <div style={{ fontSize: '46px', fontWeight: 700, lineHeight: 1,letterSpacing: '-0.05em', color: T.textPrimary, fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.02em' }}>{yearDone}</div>
+                <div style={{ fontSize: '46px', fontWeight: 700, lineHeight: 1, color: T.textPrimary, fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.02em' }}>{yearDone}</div>
                 <div style={{ fontSize: '10px', color: T.textTertiary, fontFamily: 'Inter, sans-serif' }}>of {yearTotal} days</div>
               </div>
             </div>
@@ -1191,17 +1188,18 @@ function AnalyticsScreen({ onNavigate }) {
   )
 }
 
+const SPLASH_WORDS = ['built', 'for', 'the', 'consistent.']
+
 function SplashScreen() {
-  const words = ['built', 'for', 'the', 'consistent.']
   const [visibleCount, setVisibleCount] = useState(0)
   const [focusMode, setFocusMode] = useState(false)
 
   useEffect(() => {
     const timers = []
-    words.forEach((_, i) => {
+    SPLASH_WORDS.forEach((_, i) => {
       timers.push(setTimeout(() => setVisibleCount(i + 1), i * 450))
     })
-    timers.push(setTimeout(() => setFocusMode(true), words.length * 450 + 900))
+    timers.push(setTimeout(() => setFocusMode(true), SPLASH_WORDS.length * 450 + 900))
     return () => timers.forEach(clearTimeout)
   }, [])
 
@@ -1226,18 +1224,18 @@ function SplashScreen() {
       }}>
         {!focusMode ? (
           <>
-            {words.map((word, i) => {
+            {SPLASH_WORDS.map((word, i) => {
               const shown = visibleCount > i
               return (
                 <span
                   key={word}
                   style={{
                     display: 'inline-block',
-                    marginRight: i !== words.length - 1 ? 8 : 0,
+                    marginRight: i !== SPLASH_WORDS.length - 1 ? 8 : 0,
                     opacity: shown ? 1 : 0,
                     transform: shown ? 'translateY(0px)' : 'translateY(14px)',
                     transition: 'opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1)',
-                    color: i === words.length - 1 ? '#ff5a1f' : '#F4F4F4',
+                    color: i === SPLASH_WORDS.length - 1 ? '#ff5a1f' : '#F4F4F4',
                   }}
                 >
                   {word}

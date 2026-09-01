@@ -1,5 +1,3 @@
-import React from 'react';
-
 const InfinityIcon = ({
   size = undefined,
   color = '#FF0000',
