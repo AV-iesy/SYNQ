@@ -179,7 +179,7 @@ export default function Calendar() {
 
   // ── YEAR VIEW ──────────────────────────────────────────────
   const YearView = () => (
-    <div style={{ height: 'calc(100vh - 140px)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: 'calc(100vh - 140px)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <button onClick={() => setCurrentYear(y => y-1)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: `1px solid ${faint}`, backgroundColor: 'transparent', color: subtle, cursor: 'pointer', fontSize: '14px' }}>←</button>
@@ -188,7 +188,13 @@ export default function Calendar() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', flex: 1 }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+        gridAutoRows: 'minmax(260px, auto)',
+        gap: '12px',
+        paddingBottom: '24px',
+      }}>
         {Array.from({ length: 12 }, (_, mi) => {
           const col = monthColors[mi]
           const daysInMonth = getDaysInMonth(currentYear, mi)
