@@ -20,7 +20,16 @@ const journalSchema = new mongoose.Schema({
     default: '',
     maxlength: 20000,
   },
-}, { timestamps: true })
+}, {
+  timestamps: true,
+  toJSON: {
+    transform(doc, ret) {
+      delete ret.user
+      delete ret.__v
+      return ret
+    },
+  },
+})
 
 journalSchema.index({ user: 1, date: 1 }, { unique: true })
 

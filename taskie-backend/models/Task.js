@@ -19,6 +19,7 @@ const taskSchema = new mongoose.Schema({
   },
   tag: {
     type: String,
+    enum: ['general', 'wake', 'sleep', 'gym', 'workout', 'work', 'study', 'meal', 'personal', 'break', 'health'],
     default: 'general',
     trim: true,
     maxlength: 50,
@@ -27,7 +28,16 @@ const taskSchema = new mongoose.Schema({
     type: String, // YYYY-MM-DD, which day this task belongs to
     required: true,
   },
-}, { timestamps: true })
+}, {
+  timestamps: true,
+  toJSON: {
+    transform(doc, ret) {
+      delete ret.user
+      delete ret.__v
+      return ret
+    },
+  },
+})
 
 taskSchema.index({ user: 1, date: 1 })
 

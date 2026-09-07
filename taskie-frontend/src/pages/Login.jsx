@@ -21,6 +21,9 @@ export default function Login() {
   const submit = async (e) => {
   e.preventDefault()
   if (!form.email || !form.password) return toast.error('Fill in all fields')
+  if (!isLogin && (form.password.length < 8 || new TextEncoder().encode(form.password).length > 72)) {
+    return toast.error('Password must be 8-72 bytes')
+  }
   if (!isLogin && !form.name) return toast.error('Enter your name')
 
   setLoading(true)

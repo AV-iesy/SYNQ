@@ -1,12 +1,16 @@
 const Task = require('../models/Task')
 const mongoose = require('mongoose')
-const { isValidDateKey } = require('../utils/validation')
+const { isValidDateKey, parsePageOptions } = require('../utils/validation')
 const { sendError } = require('../utils/http')
+
+const VALID_STATUSES = new Set(['pending', 'completed', 'partial'])
+const VALID_TAGS = new Set(['general', 'wake', 'sleep', 'gym', 'workout', 'work', 'study', 'meal', 'personal', 'break', 'health'])
 
 exports.getAllTasks = async (req, res) => {
   try {
-    const tasks = await Task.find({ user: req.user._id }).sort({ date: -1, createdAt: 1 })
-    res.json({ tasks })
+    const { limit, skip, page } = parsePageOptions(req.query)
+    const tasks = await Task.find({ user: req.user._id }).select('-user -__v').sort({ date: -1, createdAt: 1 }).skip(skip).limit(limit).lean()
+    res.json({ tasks, page, limit })
   } catch (error) {
     sendError(res, error)
   }
@@ -25,10 +29,14 @@ exports.getTasksByDate = async (req, res) => {
 
 exports.createTask = async (req, res) => {
   try {
-    const { title, tag, date } = req.body
+    const { title, tag, date } = req.body || {}
 
     if (typeof title !== 'string' || !title.trim() || !isValidDateKey(date)) {
       return res.status(400).json({ message: 'Title and date are required' })
+    }
+
+    if (title.trim().length > 300 || (tag !== undefined && !VALID_TAGS.has(tag))) {
+      return res.status(400).json({ message: 'Invalid task fields' })
     }
 
     const task = await Task.create({
@@ -54,14 +62,21 @@ exports.updateTask = async (req, res) => {
       return res.status(404).json({ message: 'Task not found' })
     }
 
-    if (req.body.status !== undefined) task.status = req.body.status
-    if (req.body.title !== undefined) {
-      if (typeof req.body.title !== 'string' || !req.body.title.trim()) {
+    const body = req.body || {}
+    if (body.status !== undefined) {
+      if (!VALID_STATUSES.has(body.status)) return res.status(400).json({ message: 'Invalid task status' })
+      task.status = body.status
+    }
+    if (body.title !== undefined) {
+      if (typeof body.title !== 'string' || !body.title.trim() || body.title.trim().length > 300) {
         return res.status(400).json({ message: 'Title cannot be empty' })
       }
-      task.title = req.body.title.trim()
+      task.title = body.title.trim()
     }
-    if (req.body.tag !== undefined) task.tag = req.body.tag
+    if (body.tag !== undefined) {
+      if (!VALID_TAGS.has(body.tag)) return res.status(400).json({ message: 'Invalid task tag' })
+      task.tag = body.tag
+    }
 
     await task.save()
     res.json({ task })

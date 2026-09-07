@@ -42,6 +42,7 @@ export function AuthProvider({ children }) {
   }
 
   const logout = () => {
+    authApi.logout(token).catch(() => {})
     setToken(null)
     setUser(null)
     localStorage.removeItem('synq-token')

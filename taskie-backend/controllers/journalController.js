@@ -1,11 +1,12 @@
 const Journal = require('../models/Journal')
-const { isValidDateKey } = require('../utils/validation')
+const { isValidDateKey, parsePageOptions } = require('../utils/validation')
 const { sendError } = require('../utils/http')
 
 exports.getAllEntries = async (req, res) => {
   try {
-    const entries = await Journal.find({ user: req.user._id }).sort({ date: -1 })
-    res.json({ entries })
+    const { limit, skip, page } = parsePageOptions(req.query)
+    const entries = await Journal.find({ user: req.user._id }).select('-user -__v').sort({ date: -1 }).skip(skip).limit(limit).lean()
+    res.json({ entries, page, limit })
   } catch (error) {
     sendError(res, error)
   }
@@ -24,7 +25,7 @@ exports.getEntryByDate = async (req, res) => {
 
 exports.saveEntry = async (req, res) => {
   try {
-    const { date, mood, text } = req.body
+    const { date, mood, text } = req.body || {}
 
     if (!isValidDateKey(date)) {
       return res.status(400).json({ message: 'Date is required' })
@@ -36,11 +37,18 @@ exports.saveEntry = async (req, res) => {
     if (text !== undefined && typeof text !== 'string') {
       return res.status(400).json({ message: 'Text must be a string' })
     }
+    if (typeof text === 'string' && text.length > 20000) {
+      return res.status(400).json({ message: 'Journal text is too long' })
+    }
+
+    const update = { user: req.user._id, date }
+    if (mood !== undefined) update.mood = mood
+    if (text !== undefined) update.text = text
 
     const entry = await Journal.findOneAndUpdate(
       { user: req.user._id, date },
-      { mood, text, user: req.user._id, date },
-      { upsert: true, new: true }
+      { $set: update },
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
     )
 
     res.json({ entry })

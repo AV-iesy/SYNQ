@@ -19,8 +19,10 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true,
-    minlength: 6,
+    minlength: 8,
+    select: false,
   },
+  tokenVersion: { type: Number, default: 0, select: false },
   preferences: {
     theme: { type: String, enum: ['dark', 'light'], default: 'dark' },
     defaultWakeTime: { type: String, default: '06:00' },

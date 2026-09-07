@@ -10,7 +10,7 @@ router.get('/', getAllTasks)
 router.get('/:date', getTasksByDate)
 router.post('/', createTask)
 router.put('/:id', updateTask)
-router.delete('/:id', deleteTask)
 router.delete('/date/:date', deleteAllTasksByDate)
+router.delete('/:id', deleteTask)
 
 module.exports = router

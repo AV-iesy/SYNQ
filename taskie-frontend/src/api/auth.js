@@ -10,6 +10,12 @@ export const login = async (email, password) => {
   return data
 }
 
+export const logout = async (token) => {
+  await api.post('/auth/logout', {}, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+}
+
 export const getMe = async () => {
   const { data } = await api.get('/auth/me')
   return data

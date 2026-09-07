@@ -1,5 +1,10 @@
 function sendError(res, error) {
-  console.error(error)
+  console.error({
+    event: 'controller_error',
+    name: error?.name,
+    code: error?.code,
+    message: error?.message,
+  })
   if (error?.name === 'ValidationError' || error?.name === 'CastError') {
     return res.status(400).json({ message: 'Invalid request data' })
   }

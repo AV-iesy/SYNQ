@@ -1,8 +1,30 @@
 const Schedule = require('../models/Schedule')
-const { isValidDateKey, isValidTime } = require('../utils/validation')
+const { isValidDateKey, isValidTime, parsePageOptions } = require('../utils/validation')
 const { sendError } = require('../utils/http')
 
 const ALLOWED_TAGS = new Set(['wake', 'sleep', 'gym', 'workout', 'work', 'study', 'meal', 'personal', 'break', 'health'])
+const MAX_PROVIDER_RESPONSE_BYTES = 256 * 1024
+
+async function readLimitedJson(response) {
+  const declaredLength = Number.parseInt(response.headers.get('content-length'), 10)
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_PROVIDER_RESPONSE_BYTES) {
+    throw new Error('AI response exceeded size limit')
+  }
+  const reader = response.body.getReader()
+  const chunks = []
+  let total = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > MAX_PROVIDER_RESPONSE_BYTES) {
+      await reader.cancel()
+      throw new Error('AI response exceeded size limit')
+    }
+    chunks.push(Buffer.from(value))
+  }
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+}
 
 function isValidGeneratedBlock(block) {
   return block && isValidTime(block.time) && isValidTime(block.endTime) &&
@@ -24,7 +46,7 @@ function hasValidTimeline(blocks) {
 }
 
 exports.generateSchedule = async (req, res) => {
-  const input = typeof req.body.input === 'string' ? req.body.input.trim() : ''
+  const input = typeof req.body?.input === 'string' ? req.body.input.trim() : ''
   if (!input || input.length > 5000) {
     return res.status(400).json({ message: 'Input must be between 1 and 5000 characters' })
   }
@@ -56,7 +78,7 @@ exports.generateSchedule = async (req, res) => {
       signal: controller.signal,
     })
     if (!response.ok) throw new Error(`Groq request failed with status ${response.status}`)
-    const completion = await response.json()
+    const completion = await readLimitedJson(response)
     const raw = completion.choices?.[0]?.message?.content || ''
     const match = raw.replace(/```json|```/gi, '').match(/\[[\s\S]*\]/)
     const blocks = JSON.parse(match?.[0] || '')
@@ -64,9 +86,20 @@ exports.generateSchedule = async (req, res) => {
       !blocks.every(isValidGeneratedBlock) || !hasValidTimeline(blocks)) {
       throw new Error('AI returned an invalid schedule')
     }
-    res.json({ blocks })
+    res.json({
+      blocks: blocks.map(block => ({
+        time: block.time,
+        endTime: block.endTime,
+        label: block.label.trim(),
+        tag: block.tag,
+      })),
+    })
   } catch (error) {
-    console.error('Schedule generation error:', error)
+    console.error({
+      event: 'schedule_generation_error',
+      name: error?.name,
+      message: error?.message,
+    })
     res.status(error.name === 'AbortError' ? 504 : 502).json({ message: 'Could not generate schedule' })
   } finally {
     clearTimeout(timeout)
@@ -86,7 +119,7 @@ exports.getScheduleByDate = async (req, res) => {
 
 exports.saveSchedule = async (req, res) => {
   try {
-    const { date, blocks, sourceInput } = req.body
+    const { date, blocks, sourceInput } = req.body || {}
 
     if (!isValidDateKey(date) || !Array.isArray(blocks)) {
       return res.status(400).json({ message: 'Date and blocks are required' })
@@ -95,15 +128,26 @@ exports.saveSchedule = async (req, res) => {
     if (blocks.length > 100) return res.status(400).json({ message: 'Too many schedule blocks' })
     const invalidBlock = blocks.some(block => !block ||
       typeof block.label !== 'string' || !block.label.trim() ||
+      block.label.length > 300 ||
       !isValidTime(block.time) || !isValidTime(block.endTime) ||
-      (block.tag !== undefined && (typeof block.tag !== 'string' || block.tag.length > 50)))
+      (block.tag !== undefined && !ALLOWED_TAGS.has(block.tag)))
     if (invalidBlock) return res.status(400).json({ message: 'Invalid schedule block' })
     if (!hasValidTimeline(blocks)) return res.status(400).json({ message: 'Schedule blocks must be chronological and non-overlapping' })
+    if (sourceInput !== undefined && (typeof sourceInput !== 'string' || sourceInput.length > 5000)) {
+      return res.status(400).json({ message: 'Invalid source input' })
+    }
+
+    const normalizedBlocks = blocks.map(block => ({
+      time: block.time,
+      endTime: block.endTime,
+      label: block.label.trim(),
+      ...(block.tag ? { tag: block.tag } : {}),
+    }))
 
     const schedule = await Schedule.findOneAndUpdate(
       { user: req.user._id, date },
-      { blocks, sourceInput, user: req.user._id, date },
-      { upsert: true, new: true }
+      { $set: { blocks: normalizedBlocks, sourceInput: sourceInput || '', user: req.user._id, date } },
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
     )
 
     res.json({ schedule })
@@ -126,8 +170,9 @@ exports.deleteSchedule = async (req, res) => {
 
 exports.getAllSchedules = async (req, res) => {
   try {
-    const schedules = await Schedule.find({ user: req.user._id }).sort({ date: -1 })
-    res.json({ schedules })
+    const { limit, skip, page } = parsePageOptions(req.query)
+    const schedules = await Schedule.find({ user: req.user._id }).select('-user -sourceInput -__v').sort({ date: -1 }).skip(skip).limit(limit).lean()
+    res.json({ schedules, page, limit })
   } catch (error) {
     sendError(res, error)
   }
