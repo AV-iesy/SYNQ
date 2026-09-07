@@ -320,7 +320,8 @@ export default function Planner() {
 
                   const [sh, sm] = block.time.split(':').map(Number)
                   const [eh, em] = block.endTime.split(':').map(Number)
-                  const durMins = (eh * 60 + em) - (sh * 60 + sm)
+                  const rawDuration = (eh * 60 + em) - (sh * 60 + sm)
+                  const durMins = rawDuration > 0 ? rawDuration : rawDuration + (24 * 60)
                   const durText = durMins >= 60
                     ? `${Math.floor(durMins/60)}h${durMins%60 > 0 ? ` ${durMins%60}m` : ''}`
                     : `${durMins}m`

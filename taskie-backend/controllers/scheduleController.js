@@ -4,6 +4,36 @@ const { sendError } = require('../utils/http')
 
 const ALLOWED_TAGS = new Set(['wake', 'sleep', 'gym', 'workout', 'work', 'study', 'meal', 'personal', 'break', 'health'])
 const MAX_PROVIDER_RESPONSE_BYTES = 256 * 1024
+const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-20b'
+
+const SCHEDULE_RESPONSE_FORMAT = {
+  type: 'json_schema',
+  json_schema: {
+    name: 'daily_schedule',
+    strict: true,
+    schema: {
+      type: 'object',
+      properties: {
+        blocks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              time: { type: 'string' },
+              endTime: { type: 'string' },
+              label: { type: 'string' },
+              tag: { type: 'string', enum: [...ALLOWED_TAGS] },
+            },
+            required: ['time', 'endTime', 'label', 'tag'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['blocks'],
+      additionalProperties: false,
+    },
+  },
+}
 
 async function readLimitedJson(response) {
   const declaredLength = Number.parseInt(response.headers.get('content-length'), 10)
@@ -34,15 +64,22 @@ function isValidGeneratedBlock(block) {
 
 function hasValidTimeline(blocks) {
   let previousEnd = -1
-  return blocks.every(block => {
+  return blocks.every((block, index) => {
     const [startHour, startMinute] = block.time.split(':').map(Number)
     const [endHour, endMinute] = block.endTime.split(':').map(Number)
     const start = startHour * 60 + startMinute
     const end = endHour * 60 + endMinute
-    const valid = start >= previousEnd && end > start
-    previousEnd = end
+    const overnightSleep = index === blocks.length - 1 && block.tag === 'sleep' && end < start
+    const valid = start >= previousEnd && (end > start || overnightSleep)
+    previousEnd = overnightSleep ? 24 * 60 + end : end
     return valid
   })
+}
+
+function isValidGeneratedSchedule(blocks) {
+  return Array.isArray(blocks) && blocks.length > 0 && blocks.length <= 100 &&
+    blocks[0]?.tag === 'wake' && blocks.at(-1)?.tag === 'sleep' &&
+    blocks.every(isValidGeneratedBlock) && hasValidTimeline(blocks)
 }
 
 exports.generateSchedule = async (req, res) => {
@@ -60,39 +97,44 @@ exports.generateSchedule = async (req, res) => {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 30000)
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
-        messages: [
-          {
-            role: 'system',
-            content: `You are SYNQ's scheduling assistant. Return only a JSON array of realistic schedule blocks. Each block must have exactly: time and endTime in 24-hour HH:MM format, a concise label, and a tag from wake, sleep, gym, workout, work, study, meal, personal, break, health. Start with waking and end with sleep; include meals and breaks where appropriate. Blocks must be chronological and must not overlap.`,
-          },
-          { role: 'user', content: `Create a schedule for my day: ${input}` },
-        ],
-        temperature: 0.7,
-        max_tokens: 1500,
-      }),
-      signal: controller.signal,
-    })
-    if (!response.ok) {
-      const error = new Error(`Groq request failed with status ${response.status}`)
-      error.providerStatus = response.status
-      throw error
+    let blocks
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: process.env.GROQ_MODEL || DEFAULT_GROQ_MODEL,
+          messages: [
+            {
+              role: 'system',
+              content: `You are SYNQ's scheduling assistant. Create realistic schedule blocks using 24-hour times and concise labels. The first block must use the wake tag and the final block must use the sleep tag. Include meals and breaks where appropriate. Blocks must be chronological and must not overlap. Only the final sleep block may end the following morning, with an end time earlier than its start time.`,
+            },
+            { role: 'user', content: `Create a schedule for my day: ${input}` },
+          ],
+          temperature: 0.2,
+          max_tokens: 1500,
+          reasoning_effort: 'low',
+          response_format: SCHEDULE_RESPONSE_FORMAT,
+        }),
+        signal: controller.signal,
+      })
+      if (!response.ok) {
+        const error = new Error(`Groq request failed with status ${response.status}`)
+        error.providerStatus = response.status
+        throw error
+      }
+      const completion = await readLimitedJson(response)
+      const raw = completion.choices?.[0]?.message?.content || ''
+      const candidate = JSON.parse(raw).blocks
+      if (isValidGeneratedSchedule(candidate)) {
+        blocks = candidate
+        break
+      }
     }
-    const completion = await readLimitedJson(response)
-    const raw = completion.choices?.[0]?.message?.content || ''
-    const match = raw.replace(/```json|```/gi, '').match(/\[[\s\S]*\]/)
-    const blocks = JSON.parse(match?.[0] || '')
-    if (!Array.isArray(blocks) || blocks.length === 0 || blocks.length > 100 ||
-      !blocks.every(isValidGeneratedBlock) || !hasValidTimeline(blocks)) {
-      throw new Error('AI returned an invalid schedule')
-    }
+    if (!blocks) throw new Error('AI returned an invalid schedule')
     res.json({
       blocks: blocks.map(block => ({
         time: block.time,
