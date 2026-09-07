@@ -3,6 +3,7 @@ import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
 import * as scheduleApi from '../api/schedule'
 import * as taskApi from '../api/tasks'
+import { getApiErrorMessage } from '../api/errors'
 import { formatLocalDate } from '../utils/date'
 
 const TAG_COLORS = {
@@ -59,7 +60,7 @@ export default function Planner() {
     try {
       setSchedule(await scheduleApi.generateSchedule(input.trim()))
     } catch (err) {
-      setError('Could not generate schedule. Please try again.')
+      setError(getApiErrorMessage(err, 'Could not generate schedule. Please try again.'))
       console.error(err)
     } finally {
       setLoading(false)

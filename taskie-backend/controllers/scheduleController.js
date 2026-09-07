@@ -51,7 +51,10 @@ exports.generateSchedule = async (req, res) => {
     return res.status(400).json({ message: 'Input must be between 1 and 5000 characters' })
   }
   if (!process.env.GROQ_API_KEY) {
-    return res.status(503).json({ message: 'Schedule generation is not configured' })
+    return res.status(503).json({
+      code: 'AI_NOT_CONFIGURED',
+      message: 'AI schedule generation is temporarily unavailable',
+    })
   }
 
   const controller = new AbortController()
@@ -77,7 +80,11 @@ exports.generateSchedule = async (req, res) => {
       }),
       signal: controller.signal,
     })
-    if (!response.ok) throw new Error(`Groq request failed with status ${response.status}`)
+    if (!response.ok) {
+      const error = new Error(`Groq request failed with status ${response.status}`)
+      error.providerStatus = response.status
+      throw error
+    }
     const completion = await readLimitedJson(response)
     const raw = completion.choices?.[0]?.message?.content || ''
     const match = raw.replace(/```json|```/gi, '').match(/\[[\s\S]*\]/)
@@ -100,7 +107,28 @@ exports.generateSchedule = async (req, res) => {
       name: error?.name,
       message: error?.message,
     })
-    res.status(error.name === 'AbortError' ? 504 : 502).json({ message: 'Could not generate schedule' })
+    if (error.name === 'AbortError') {
+      return res.status(504).json({
+        code: 'AI_TIMEOUT',
+        message: 'Schedule generation timed out. Please try again',
+      })
+    }
+    if ([401, 403].includes(error.providerStatus)) {
+      return res.status(503).json({
+        code: 'AI_NOT_CONFIGURED',
+        message: 'AI schedule generation is temporarily unavailable',
+      })
+    }
+    if (error.providerStatus === 429) {
+      return res.status(503).json({
+        code: 'AI_BUSY',
+        message: 'The AI service is busy. Please try again shortly',
+      })
+    }
+    res.status(502).json({
+      code: 'AI_PROVIDER_ERROR',
+      message: 'Could not generate a valid schedule. Please try again',
+    })
   } finally {
     clearTimeout(timeout)
   }
