@@ -1359,37 +1359,35 @@ const SCREENS = [
 const KEY_MAP = { dashboard: 'Dashboard', planner: 'Planner', calendar: 'Calendar', journal: 'Journal', analytics: 'Analytics' }
 
 export default function Showcase() {
-  const scrollContainerRef = useRef(null)
   const dockScrollTimeoutRef = useRef(null)
-  const isDockScrollingRef = useRef(false)
+  const navigationLockedRef = useRef(false)
   const [activeIndex, setActiveIndex] = useState(0)
-  const showcaseHeight = `${(SCREENS.length + 1) * 100}vh`
 
   useEffect(() => {
-    let raf = null
-    const handleScroll = () => {
-      if (raf) return
-      raf = requestAnimationFrame(() => {
-        raf = null
-        const el = scrollContainerRef.current
-        if (!el) return
-        if (isDockScrollingRef.current) return
-
-        const rect = el.getBoundingClientRect()
-        const total = rect.height - window.innerHeight
-        const scrolled = -rect.top
-        const progress = Math.min(1, Math.max(0, scrolled / total))
-
-        const index = Math.min(SCREENS.length - 1, Math.floor(progress * SCREENS.length))
-        setActiveIndex(prev => (prev === index ? prev : index))
-      })
+    const navigateBy = (step) => {
+      if (navigationLockedRef.current) return
+      navigationLockedRef.current = true
+      setActiveIndex(current => Math.min(SCREENS.length - 1, Math.max(0, current + step)))
+      if (dockScrollTimeoutRef.current) clearTimeout(dockScrollTimeoutRef.current)
+      dockScrollTimeoutRef.current = setTimeout(() => {
+        navigationLockedRef.current = false
+      }, 450)
     }
 
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    handleScroll()
+    const handleWheel = (event) => {
+      if (Math.abs(event.deltaY) < 24) return
+      navigateBy(event.deltaY > 0 ? 1 : -1)
+    }
+    const handleKeyDown = (event) => {
+      if (['ArrowDown', 'ArrowRight', 'PageDown'].includes(event.key)) navigateBy(1)
+      if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(event.key)) navigateBy(-1)
+    }
+
+    window.addEventListener('wheel', handleWheel, { passive: true })
+    window.addEventListener('keydown', handleKeyDown)
     return () => {
-      window.removeEventListener('scroll', handleScroll)
-      if (raf) cancelAnimationFrame(raf)
+      window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('keydown', handleKeyDown)
       if (dockScrollTimeoutRef.current) clearTimeout(dockScrollTimeoutRef.current)
     }
   }, [])
@@ -1401,27 +1399,11 @@ export default function Showcase() {
     if (!targetName) return
     const targetIndex = SCREENS.findIndex(s => s.name === targetName)
     if (targetIndex === -1) return
-    isDockScrollingRef.current = true
     setActiveIndex(targetIndex)
-
-    const el = scrollContainerRef.current
-    if (!el) {
-      isDockScrollingRef.current = false
-      return
-    }
-    const total = el.getBoundingClientRect().height - window.innerHeight
-    const targetProgress = (targetIndex + 0.5) / SCREENS.length
-    const targetScroll = window.scrollY + el.getBoundingClientRect().top + targetProgress * total
-    window.scrollTo({ top: targetScroll, behavior: 'smooth' })
-    if (dockScrollTimeoutRef.current) clearTimeout(dockScrollTimeoutRef.current)
-    dockScrollTimeoutRef.current = setTimeout(() => {
-      isDockScrollingRef.current = false
-      setActiveIndex(targetIndex)
-    }, 700)
   }
 
   return (
-    <div style={{ backgroundColor: '#000' }}>
+    <div className="showcase-page" style={{ backgroundColor: '#000' }}>
 
       {/* Nav — fixed on top */}
       <div style={{
@@ -1453,12 +1435,10 @@ export default function Showcase() {
         </Link>
       </div>
 
-      {/* Scroll-controlled phone section */}
-      <div ref={scrollContainerRef} style={{ position: 'relative', height: showcaseHeight }}>
+      {/* Viewport-locked phone section */}
+      <div className="showcase-stage">
         <div style={{
-          position: 'sticky',
-          top: 0,
-          height: '100vh',
+          height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1469,11 +1449,11 @@ export default function Showcase() {
           <div style={{
             position: 'relative', zIndex: 1,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: '64px', width: '100%', maxWidth: '1200px', padding: '0 48px',
+            gap: 'clamp(32px, 5vw, 64px)', width: '100%', maxWidth: '1200px',
           }}>
 
             {/* Left text slot */}
-            <div style={{ flex: 1, textAlign: 'right' }}>
+            <div className="showcase-copy" style={{ flex: 1, textAlign: 'right' }}>
               {SCREENS.map((s, i) => {
                 if (s.side !== 'left') return null
                 const active = i === activeIndex
@@ -1506,17 +1486,16 @@ export default function Showcase() {
             </div>
 
             {/* Phone */}
-            <div style={{
-              filter: 'drop-shadow(rgba(0,0,0,0.5) 0px 30px 90px)',
-              flexShrink: 0,
-            }}>
-              <Iphone width={370}>
-                <Component onNavigate={handleDockNavigate} />
-              </Iphone>
+            <div className="showcase-phone-frame">
+              <div className="showcase-phone-inner">
+                <Iphone width={350}>
+                  <Component onNavigate={handleDockNavigate} />
+                </Iphone>
+              </div>
             </div>
 
             {/* Right text slot */}
-            <div style={{ flex: 1, textAlign: 'left' }}>
+            <div className="showcase-copy" style={{ flex: 1, textAlign: 'left' }}>
               {SCREENS.map((s, i) => {
                 if (s.side !== 'right') return null
                 const active = i === activeIndex
@@ -1552,6 +1531,31 @@ export default function Showcase() {
       </div>
 
       <style>{`
+        .showcase-page {
+          width: 100%;
+          height: 100vh;
+          height: 100svh;
+          overflow: hidden;
+          overscroll-behavior: none;
+        }
+        .showcase-stage {
+          height: 100%;
+          padding: 108px 32px 24px;
+        }
+        .showcase-phone-frame {
+          --phone-scale: 1;
+          position: relative;
+          width: 350px;
+          height: 717.5px;
+          flex-shrink: 0;
+          filter: drop-shadow(rgba(0,0,0,0.5) 0px 30px 90px);
+        }
+        .showcase-phone-inner {
+          position: absolute;
+          inset: 0 auto auto 0;
+          transform: scale(var(--phone-scale));
+          transform-origin: top left;
+        }
         .phone-scroll::-webkit-scrollbar {
           width: 0;
           height: 0;
@@ -1560,6 +1564,39 @@ export default function Showcase() {
         @keyframes bounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(8px); }
+        }
+        @media (max-height: 840px) {
+          .showcase-stage { padding-top: 112px; padding-bottom: 18px; }
+          .showcase-phone-frame { --phone-scale: 0.8; width: 280px; height: 574px; }
+        }
+        @media (max-height: 760px) {
+          .showcase-stage { padding-top: 104px; padding-bottom: 14px; }
+          .showcase-phone-frame { --phone-scale: 0.76; width: 266px; height: 545.3px; }
+        }
+        @media (max-height: 700px) {
+          .showcase-stage { padding-top: 86px; padding-bottom: 14px; }
+          .showcase-phone-frame { --phone-scale: 0.7; width: 245px; height: 502.25px; }
+        }
+        @media (max-width: 900px) {
+          .showcase-stage { padding-inline: 20px; }
+          .showcase-copy { display: none; }
+          .showcase-phone-frame { --phone-scale: 0.86; width: 301px; height: 617.05px; }
+        }
+        @media (max-width: 480px) {
+          .showcase-stage { padding-top: 92px; padding-inline: 12px; }
+          .showcase-phone-frame { --phone-scale: 0.78; width: 273px; height: 559.65px; }
+        }
+        @media (max-width: 900px) and (max-height: 840px) {
+          .showcase-phone-frame { --phone-scale: 0.74; width: 259px; height: 530.95px; }
+        }
+        @media (max-width: 900px) and (max-height: 700px) {
+          .showcase-phone-frame { --phone-scale: 0.62; width: 217px; height: 444.85px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .showcase-page *, .showcase-page *::before, .showcase-page *::after {
+            animation-duration: 0.01ms !important;
+            transition-duration: 0.01ms !important;
+          }
         }
       `}</style>
     </div>
