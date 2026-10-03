@@ -3,7 +3,7 @@ import AppLayout from '../components/common/AppLayout'
 import { useTheme } from '../context/ThemeContext'
 import * as journalApi from '../api/journal'
 import * as scheduleApi from '../api/schedule'
-import { formatLocalDate } from '../utils/date'
+import { calendarMonth, formatLocalDate } from '../utils/date'
 import { usePageTransition } from '../context/PageTransitionContext'
 
 const MOODS = [
@@ -15,7 +15,7 @@ const MOODS = [
 ]
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
-const DAYS = ['S','M','T','W','T','F','S']
+const DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT']
 
 function buildAIDraft(blocks) {
   if (!blocks || blocks.length === 0) {
@@ -203,12 +203,7 @@ export default function Journal() {
 
   const entryList = Object.values(entries).sort((a, b) => b.date.localeCompare(a.date))
 
-  const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate()
-  const getFirstDay = (y, m) => new Date(y, m, 1).getDay()
-  const formatKey = (y, m, d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
-  const daysInMonth = getDaysInMonth(calYear, calMonth)
-  const firstDay = getFirstDay(calYear, calMonth)
-  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7
+  const calendarDays = calendarMonth(calYear, calMonth)
 
   const prevMonth = () => {
     if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1) }
@@ -217,6 +212,11 @@ export default function Journal() {
   const nextMonth = () => {
     if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1) }
     else setCalMonth(m => m + 1)
+  }
+  const goToToday = () => {
+    setCalMonth(today.getMonth())
+    setCalYear(today.getFullYear())
+    selectDate(todayKey)
   }
 
   if (loading) {
@@ -336,60 +336,78 @@ export default function Journal() {
           </div>
 
           {/* Mini calendar — top right */}
-          <div style={{ ...card(), display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexShrink: 0 }}>
-              <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '13px', fontWeight: 600, color: text }}>
-                {MONTHS[calMonth]} {calYear}
+          <div style={{ ...card(), display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '12px', flexShrink: 0 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '16px', fontWeight: 650, color: text, letterSpacing: '-0.25px' }}>
+                  {MONTHS[calMonth]} {calYear}
+                </div>
+                <div style={{ marginTop: '2px', fontFamily: 'Inter, sans-serif', fontSize: '9px', color: subtle }}>
+                  Today · {today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                <button onClick={prevMonth} style={{ width: '22px', height: '22px', borderRadius: '6px', border: `1px solid ${faint}`, backgroundColor: 'transparent', color: subtle, cursor: 'pointer', fontSize: '10px' }}>←</button>
-                <button onClick={nextMonth} style={{ width: '22px', height: '22px', borderRadius: '6px', border: `1px solid ${faint}`, backgroundColor: 'transparent', color: subtle, cursor: 'pointer', fontSize: '10px' }}>→</button>
+              <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                <button aria-label="Previous month" onClick={prevMonth} style={{ width: '26px', height: '26px', borderRadius: '7px', border: `1px solid ${faint}`, backgroundColor: 'transparent', color: subtle, cursor: 'pointer', fontSize: '11px' }}>←</button>
+                <button onClick={goToToday} style={{ height: '26px', padding: '0 8px', borderRadius: '7px', border: `1px solid ${faint}`, backgroundColor: 'transparent', color: text, cursor: 'pointer', fontSize: '9px', fontFamily: 'Inter, sans-serif' }}>Today</button>
+                <button aria-label="Next month" onClick={nextMonth} style={{ width: '26px', height: '26px', borderRadius: '7px', border: `1px solid ${faint}`, backgroundColor: 'transparent', color: subtle, cursor: 'pointer', fontSize: '11px' }}>→</button>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px', marginBottom: '4px', flexShrink: 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '4px', marginBottom: '5px', flexShrink: 0 }}>
               {DAYS.map((d, i) => (
-                <div key={i} style={{ textAlign: 'center', fontSize: '8px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{d}</div>
+                <div key={i} style={{ textAlign: 'center', fontSize: '7px', fontWeight: 600, letterSpacing: '0.35px', color: subtle, fontFamily: 'Inter, sans-serif', padding: '2px 0' }}>{d}</div>
               ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px', flex: 1 }}>
-              {Array.from({ length: totalCells }, (_, i) => {
-                const dayNum = i - firstDay + 1
-                if (dayNum < 1 || dayNum > daysInMonth) return <div key={i} />
-                const key = formatKey(calYear, calMonth, dayNum)
-                const entry = entries[key]
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gridTemplateRows: 'repeat(6, minmax(28px, 1fr))', gap: '4px', flex: 1, minHeight: 0 }}>
+              {calendarDays.map((calendarDay) => {
+                const entry = entries[calendarDay.key]
                 const mood = entry ? MOODS.find(m => m.key === entry.mood) : null
-                const isSelected = selectedDate === key
-                const isTodayCell = key === todayKey
+                const isSelected = selectedDate === calendarDay.key
+                const isTodayCell = calendarDay.key === todayKey
+                const dateLabel = new Date(calendarDay.year, calendarDay.month, calendarDay.day, 12)
+                  .toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
 
                 return (
-                  <div
-                    key={i}
-                    onClick={() => selectDate(key)}
+                  <button
+                    key={calendarDay.key}
+                    type="button"
+                    aria-label={dateLabel}
+                    aria-current={isTodayCell ? 'date' : undefined}
+                    aria-pressed={isSelected}
+                    title={dateLabel}
+                    onClick={() => {
+                      if (!calendarDay.isCurrentMonth) {
+                        setCalMonth(calendarDay.month)
+                        setCalYear(calendarDay.year)
+                      }
+                      selectDate(calendarDay.key)
+                    }}
                     style={{
-                      aspectRatio: '1', borderRadius: '6px',
+                      width: '100%', minWidth: 0, minHeight: '28px', padding: 0, borderRadius: '7px',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '10px', fontFamily: 'Inter, sans-serif',
-                      color: mood ? mood.color : (isTodayCell ? text : subtle),
-                      backgroundColor: mood ? mood.color + '1a' : 'transparent',
-                      border: isSelected ? `1.5px solid ${mood ? mood.color : '#ff4d00'}` : isTodayCell ? `1px solid ${faint}` : '1px solid transparent',
+                      color: isTodayCell ? '#fff' : mood ? mood.color : calendarDay.isCurrentMonth ? text : subtle,
+                      opacity: calendarDay.isCurrentMonth ? 1 : 0.36,
+                      backgroundColor: isTodayCell ? '#ff4d00' : mood ? mood.color + '1a' : 'transparent',
+                      border: isSelected ? `1.5px solid ${mood && !isTodayCell ? mood.color : '#ff4d00'}` : `1px solid ${faint}`,
+                      boxShadow: isSelected && !isTodayCell ? `0 0 0 2px ${dark ? '#161616' : '#fff'}, 0 0 0 3px #ff4d0066` : 'none',
                       cursor: 'pointer',
-                      fontWeight: mood || isTodayCell ? 600 : 400,
+                      fontWeight: mood || isTodayCell || isSelected ? 650 : 400,
                       transition: 'all 0.12s',
                     }}
                   >
-                    {dayNum}
-                  </div>
+                    {calendarDay.day}
+                  </button>
                 )
               })}
             </div>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '10px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: '9px', rowGap: '4px', marginTop: '10px', paddingTop: '9px', borderTop: `1px solid ${faint}`, flexShrink: 0 }}>
               {MOODS.map(m => (
-                <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                  <div style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: m.color }} />
-                  <span style={{ fontSize: '8px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{m.label}</span>
+                <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: m.color }} />
+                  <span style={{ fontSize: '9px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{m.label}</span>
                 </div>
               ))}
             </div>

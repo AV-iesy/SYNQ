@@ -12,3 +12,19 @@ export function dateRange(days, end = new Date()) {
     return formatLocalDate(date)
   })
 }
+
+export function calendarMonth(year, month) {
+  const firstDay = new Date(year, month, 1).getDay()
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(year, month, index - firstDay + 1, 12)
+    return {
+      key: formatLocalDate(date),
+      day: date.getDate(),
+      month: date.getMonth(),
+      year: date.getFullYear(),
+      weekday: date.getDay(),
+      isCurrentMonth: date.getMonth() === month && date.getFullYear() === year,
+    }
+  })
+}
