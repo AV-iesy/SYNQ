@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "provision:superadmin": "node scripts/provision-superadmin.js",
     "test": "node --test",
     "start": "node index.js"
   },

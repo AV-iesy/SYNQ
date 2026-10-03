@@ -4,6 +4,7 @@ const paypal = require('@paypal/checkout-server-sdk')
 const User = require('../models/User')
 const PaymentRecord = require('../models/PaymentRecord')
 const { isMissing } = require('../utils/config')
+const { hasPremiumAccess, getAccessSource } = require('../utils/access')
 
 const VALID_PLANS = new Set(['monthly', 'lifetime'])
 
@@ -70,6 +71,9 @@ function paymentUser(user) {
     id: user._id,
     name: user.name,
     email: user.email,
+    role: user.role || 'user',
+    hasPremiumAccess: hasPremiumAccess(user),
+    accessSource: getAccessSource(user),
     isPremium: user.isPremium,
     premiumPlan: user.premiumPlan,
     premiumExpiry: user.premiumExpiry,
@@ -227,15 +231,19 @@ exports.verifyPayment = async (req, res) => {
 
 exports.getStatus = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('isPremium premiumPlan premiumExpiry premiumSince')
+    const user = await User.findById(req.user._id).select('role isPremium premiumPlan premiumExpiry premiumSince')
     if (!user) return res.status(404).json({ error: 'User not found' })
 
     if (user.isPremium && user.premiumPlan === 'monthly' && user.premiumExpiry && user.premiumExpiry <= new Date()) {
       await User.findByIdAndUpdate(req.user._id, { isPremium: false, premiumPlan: null, premiumExpiry: null })
-      return res.json({ isPremium: false, premiumPlan: null, premiumExpiry: null, premiumSince: user.premiumSince })
+      user.isPremium = false
+      user.premiumPlan = null
+      user.premiumExpiry = null
     }
     res.json({
       isPremium: Boolean(user.isPremium),
+      hasPremiumAccess: hasPremiumAccess(user),
+      accessSource: getAccessSource(user),
       premiumPlan: user.premiumPlan,
       premiumExpiry: user.premiumExpiry,
       premiumSince: user.premiumSince,

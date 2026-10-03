@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
+const { hasPremiumAccess } = require('../utils/access')
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -23,6 +24,12 @@ const userSchema = new mongoose.Schema({
     select: false,
   },
   tokenVersion: { type: Number, default: 0, select: false },
+  role: {
+    type: String,
+    enum: ['user', 'superadmin'],
+    default: 'user',
+    index: true,
+  },
   preferences: {
     theme: { type: String, enum: ['dark', 'light'], default: 'dark' },
     defaultWakeTime: { type: String, default: '06:00' },
@@ -55,11 +62,17 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password)
 }
 
+userSchema.methods.hasPremiumAccess = function () {
+  return hasPremiumAccess(this)
+}
+
 userSchema.methods.toSafeObject = function () {
   return {
     id: this._id,
     name: this.name,
     email: this.email,
+    role: this.role || 'user',
+    hasPremiumAccess: this.hasPremiumAccess(),
     preferences: this.preferences,
     stats: this.stats,
     isPremium: this.isPremium || false,

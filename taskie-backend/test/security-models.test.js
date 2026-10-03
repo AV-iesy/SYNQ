@@ -27,6 +27,23 @@ test('sensitive identity fields are excluded by default', () => {
   assert.equal(Schedule.schema.path('sourceInput').options.select, false)
 })
 
+test('superadmin receives premium access without changing payment state', () => {
+  const regular = new User({ name: 'Regular', email: 'regular@example.com', password: 'password123' })
+  const premium = new User({ name: 'Premium', email: 'premium@example.com', password: 'password123', isPremium: true })
+  const admin = new User({ name: 'Admin', email: 'admin@example.com', password: 'password123', role: 'superadmin' })
+
+  assert.equal(regular.role, 'user')
+  assert.equal(regular.hasPremiumAccess(), false)
+  assert.equal(premium.hasPremiumAccess(), true)
+  assert.equal(admin.isPremium, false)
+  assert.equal(admin.hasPremiumAccess(), true)
+
+  const safeAdmin = admin.toSafeObject()
+  assert.equal(safeAdmin.role, 'superadmin')
+  assert.equal(safeAdmin.hasPremiumAccess, true)
+  assert.equal(safeAdmin.isPremium, false)
+})
+
 test('resource JSON removes internal ownership fields', () => {
   const userId = new mongoose.Types.ObjectId()
   const task = new Task({ user: userId, title: 'Safe output', date: '2026-09-07' }).toJSON()

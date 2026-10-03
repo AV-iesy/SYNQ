@@ -903,21 +903,23 @@ function AnalyticsDashboard() {
 // ── Main Export ───────────────────────────────────────────────
 export default function Analytics() {
   const { user, token } = useAuth()
-  const [isPremium, setIsPremium] = useState(user?.isPremium || false)
+  const [hasAnalyticsAccess, setHasAnalyticsAccess] = useState(
+    Boolean(user?.hasPremiumAccess ?? user?.isPremium)
+  )
   const [checking, setChecking] = useState(() => Boolean(token))
 
   useEffect(() => {
-    // Always verify premium status from server, not just user object
+    // Always verify entitlement status from the server, not just the cached user object.
     if (token) {
       paymentApi.getStatus()
-        .then(data => setIsPremium(data.isPremium))
-        .catch(() => setIsPremium(false))
+        .then(data => setHasAnalyticsAccess(Boolean(data.hasPremiumAccess ?? data.isPremium)))
+        .catch(() => setHasAnalyticsAccess(false))
         .finally(() => setChecking(false))
     }
   }, [token])
 
   const handleUnlock = useCallback(() => {
-    setIsPremium(true)
+    setHasAnalyticsAccess(true)
   }, [])
 
   if (checking) {
@@ -930,7 +932,7 @@ export default function Analytics() {
 
   return (
     <AppLayout>
-      {isPremium ? (
+      {hasAnalyticsAccess ? (
         <AnalyticsDashboard />
       ) : (
         <Paywall onUnlock={handleUnlock} />
