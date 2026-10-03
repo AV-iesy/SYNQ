@@ -27,6 +27,12 @@ const TAG_COLORS = {
 
 const MOOD_SCORES = { great: 5, good: 4, okay: 3, low: 2, rough: 1 }
 const MOOD_COLORS = { great: '#ff4d00', good: '#5aad7a', okay: '#4a90d9', low: '#8b6bc7', rough: '#888' }
+const MOOD_LABELS = { 1: 'Rough', 2: 'Low', 3: 'Okay', 4: 'Good', 5: 'Great' }
+
+function MoodDot({ cx, cy, payload, outline }) {
+  if (!payload?.mood || cx === undefined || cy === undefined) return null
+  return <circle cx={cx} cy={cy} r={4} fill={MOOD_COLORS[payload.mood]} stroke={outline} strokeWidth={2} />
+}
 
 function getDateRange(days) {
   return dateRange(days)
@@ -767,10 +773,15 @@ function AnalyticsDashboard() {
     })
   })
 
-  const moodCounts = {}
-  Object.values(journalEntries).forEach(e => { if (e.mood) moodCounts[e.mood] = (moodCounts[e.mood] || 0) + 1 })
-  const moodDistribution = Object.entries(moodCounts).map(([mood, count]) => ({ name: mood, value: count, color: MOOD_COLORS[mood] })).sort((a, b) => MOOD_SCORES[b.name] - MOOD_SCORES[a.name])
-  const moodTotal = moodDistribution.reduce((s, x) => s + x.value, 0)
+  const categoryData = Object.entries(tagDurations)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([tag, minutes]) => ({ tag, minutes, color: TAG_COLORS[tag] || '#888' }))
+  const totalCategoryMinutes = categoryData.reduce((sum, category) => sum + category.minutes, 0)
+  const totalCategoryHoursText = totalCategoryMinutes >= 60
+    ? `${Math.floor(totalCategoryMinutes / 60)}h${totalCategoryMinutes % 60 ? ` ${totalCategoryMinutes % 60}m` : ''}`
+    : `${totalCategoryMinutes}m`
+  const moodEntryCount = trendData.filter(day => day.moodScore !== null).length
 
   let streak = 0
   for (let i = trendData.length - 1; i >= 0; i--) {
@@ -821,77 +832,109 @@ function AnalyticsDashboard() {
         ))}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1.3fr 1fr', gridTemplateRows: '1fr 1fr', gap: '12px' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1.3fr 1fr', gridTemplateRows: '190px minmax(320px, 1fr)', gap: '12px' }}>
         <div style={{ ...card(), display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          {sectionLabel('Completion Heatmap')}
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: 0 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${trendData.length}, 1fr)`, gap: '5px', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+            <div>
+              {sectionLabel('Completion Heatmap')}
+              <div style={{ marginTop: '-5px', fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '19px', fontWeight: 650, color: text }}>{avgCompletion}% average</div>
+            </div>
+            <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{range} day view</div>
+          </div>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: 0, padding: '10px 0 6px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${trendData.length}, minmax(5px, 1fr))`, gap: range === 90 ? '2px' : '5px', width: '100%' }}>
               {trendData.map((d, i) => (
                 <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                  <div title={`${d.label}: ${d.completionPct}%`} style={{ width: '100%', aspectRatio: '1', borderRadius: '6px', backgroundColor: heatColor(heatLevel(d.completionPct)) }} />
+                  <div title={`${d.label}: ${d.completionPct}%`} style={{ width: '100%', height: range === 7 ? '34px' : '28px', borderRadius: range === 90 ? '3px' : '6px', backgroundColor: heatColor(heatLevel(d.completionPct)) }} />
                   {range <= 7 && <span style={{ fontSize: '8px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{d.label.split(' ')[1]}</span>}
                 </div>
               ))}
             </div>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '9px', color: subtle, fontFamily: 'Inter, sans-serif' }}>
+            <span>{trendData[0]?.label}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span>Less</span>
+              {[0, 1, 2, 3, 4].map(level => <span key={level} style={{ width: '9px', height: '9px', borderRadius: '3px', backgroundColor: heatColor(level) }} />)}
+              <span>More</span>
+            </div>
+            <span>{trendData.at(-1)?.label}</span>
+          </div>
         </div>
 
         <div style={{ ...card(), display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          {sectionLabel('Time by Category')}
-          {Object.keys(tagDurations).length === 0 ? (
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+            <div>
+              {sectionLabel('Time by Category')}
+              <div style={{ marginTop: '-5px', fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '19px', fontWeight: 650, color: text }}>{totalCategoryHoursText} scheduled</div>
+            </div>
+            <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{categoryData.length} categories</div>
+          </div>
+          {categoryData.length === 0 ? (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: subtle, fontSize: '12px', fontFamily: 'Inter, sans-serif' }}>No schedule data yet</div>
           ) : (
-            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', alignContent: 'start', overflowY: 'auto' }}>
-              {Object.entries(tagDurations).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([tag, minutes], i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '10px', backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: TAG_COLORS[tag] || '#888', flexShrink: 0 }} />
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '11px', color: text, fontFamily: 'Inter, sans-serif', textTransform: 'capitalize' }}>{tag}</div>
-                    <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{Math.round(minutes / 60 * 10) / 10}h</div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 0 }}>
+              <div style={{ height: '10px', display: 'flex', gap: '2px', overflow: 'hidden', borderRadius: '999px', backgroundColor: faint, margin: '12px 0 14px' }}>
+                {categoryData.map(category => (
+                  <div key={category.tag} title={`${category.tag}: ${Math.round(category.minutes / 60 * 10) / 10}h`} style={{ width: `${(category.minutes / totalCategoryMinutes) * 100}%`, backgroundColor: category.color, minWidth: '3px' }} />
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: '18px', rowGap: '8px', overflowY: 'auto' }}>
+                {categoryData.map(category => (
+                  <div key={category.tag} style={{ display: 'grid', gridTemplateColumns: '8px minmax(0, 1fr) auto', alignItems: 'center', gap: '7px' }}>
+                    <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: category.color }} />
+                    <div style={{ fontSize: '10px', color: text, fontFamily: 'Inter, sans-serif', textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis' }}>{category.tag}</div>
+                    <div style={{ fontSize: '10px', color: subtle, fontFamily: 'Inter, sans-serif' }}>
+                      {Math.round(category.minutes / 60 * 10) / 10}h
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>
 
         <div style={{ ...card(), display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          {sectionLabel('Completion & Focus Trend')}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '8px' }}>
+            {sectionLabel('Completion & Focus Trend')}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'Inter, sans-serif', fontSize: '9px', color: subtle }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ width: '14px', height: '2px', backgroundColor: '#ff4d00' }} />Completion</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ width: '14px', height: '2px', backgroundColor: '#4a90d9' }} />Focus</span>
+            </div>
+          </div>
           <div style={{ flex: 1, minHeight: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData}>
+              <LineChart data={trendData} margin={{ top: 8, right: 4, bottom: 0, left: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                <XAxis dataKey="label" stroke={subtle} tick={{ fontSize: 10, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} />
-                <YAxis yAxisId="left" stroke="#ff4d00" tick={{ fontSize: 10, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} domain={[0, 100]} width={28} />
-                <YAxis yAxisId="right" orientation="right" stroke="#4a90d9" tick={{ fontSize: 10, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} width={28} />
+                <XAxis dataKey="label" stroke={subtle} tick={{ fontSize: 9, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} minTickGap={34} tickMargin={10} />
+                <YAxis yAxisId="left" stroke="#ff4d00" tick={{ fontSize: 9, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} width={28} />
+                <YAxis yAxisId="right" orientation="right" stroke="#4a90d9" tick={{ fontSize: 9, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} domain={[0, dataMax => Math.max(1, Math.ceil(dataMax))]} width={28} />
                 <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: text }} />
-                <Line yAxisId="left" type="monotone" dataKey="completionPct" name="Completion %" stroke="#ff4d00" strokeWidth={2} dot={{ r: 2 }} />
-                <Line yAxisId="right" type="monotone" dataKey="focusHours" name="Focus hrs" stroke="#4a90d9" strokeWidth={2} dot={{ r: 2 }} />
+                <Line yAxisId="left" type="monotone" dataKey="completionPct" name="Completion %" stroke="#ff4d00" strokeWidth={2.5} dot={range <= 7 ? { r: 3 } : false} activeDot={{ r: 4 }} />
+                <Line yAxisId="right" type="monotone" dataKey="focusHours" name="Focus hrs" stroke="#4a90d9" strokeWidth={2.5} dot={range <= 7 ? { r: 3 } : false} activeDot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         <div style={{ ...card(), display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          {sectionLabel('Mood Breakdown')}
-          {moodDistribution.length === 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '8px' }}>
+            {sectionLabel('Mood Trend')}
+            <div style={{ fontSize: '9px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{moodEntryCount} journal {moodEntryCount === 1 ? 'entry' : 'entries'}</div>
+          </div>
+          {moodEntryCount === 0 ? (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: subtle, fontSize: '12px', fontFamily: 'Inter, sans-serif' }}>No mood data yet</div>
           ) : (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center', overflowY: 'auto' }}>
-              {moodDistribution.map(m => {
-                const pct = Math.round((m.value / moodTotal) * 100)
-                return (
-                  <div key={m.name}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '11px', color: text, fontFamily: 'Inter, sans-serif', textTransform: 'capitalize' }}>{m.name}</span>
-                      <span style={{ fontSize: '11px', color: subtle, fontFamily: 'Inter, sans-serif' }}>{m.value}d · {pct}%</span>
-                    </div>
-                    <div style={{ height: '5px', backgroundColor: faint, borderRadius: '3px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, backgroundColor: m.color, borderRadius: '3px', transition: 'width 0.4s ease' }} />
-                    </div>
-                  </div>
-                )
-              })}
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+                  <XAxis dataKey="label" stroke={subtle} tick={{ fontSize: 9, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} minTickGap={34} tickMargin={10} />
+                  <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} tickFormatter={value => MOOD_LABELS[value]} stroke={subtle} tick={{ fontSize: 9, fontFamily: 'Inter, sans-serif' }} axisLine={false} tickLine={false} width={44} />
+                  <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: text }} formatter={value => [MOOD_LABELS[value] || value, 'Mood']} />
+                  <Line type="monotone" dataKey="moodScore" name="Mood" connectNulls stroke="#8b6bc7" strokeWidth={2.5} dot={<MoodDot outline={cardBg} />} activeDot={{ r: 5, fill: '#8b6bc7' }} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           )}
         </div>
